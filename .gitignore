@@ -1,0 +1,6 @@
+*.pyc
+*.cache
+models
+summary
+.idea
+*.ini
