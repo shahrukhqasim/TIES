@@ -4,3 +4,5 @@ models
 summary
 .idea
 *.ini
+*.class
+out
