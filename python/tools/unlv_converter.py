@@ -6,6 +6,7 @@ import json
 import shutil
 
 show = False
+show_ocr = False
 
 
 class UnlvConverter:
@@ -88,6 +89,9 @@ class UnlvConverter:
             i += 1
 
     def see_ocr(self):
+        image = np.copy(self.image)
+        rows, cols, _ = np.shape(image)
+
         tree = ET.parse(self.ocr_path)
         root = tree.getroot()
         words_xml = root.find('words')
@@ -95,10 +99,18 @@ class UnlvConverter:
         for word_xml in words_xml:
             word_text = word_xml.text
             word_xml_attrib = word_xml.attrib
-            x1 = word_xml_attrib['left']
-            y1 = word_xml_attrib['top']
-            x2 = word_xml_attrib['right']
-            y2 = word_xml_attrib['bottom']
+            x1 = int(word_xml_attrib['left'])
+            y1 = rows - int(word_xml_attrib['top'])
+            x2 = int(word_xml_attrib['right'])
+            y2 = rows - int(word_xml_attrib['bottom'])
+
+            if y1 > y2:
+                y1, y2 = y2, y1
+
+            if show_ocr:
+                cv2.rectangle(image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255),
+                              thickness=2)
+
             word = dict()
             word['text'] = word_text
             word['x1'] = x1
@@ -109,6 +121,12 @@ class UnlvConverter:
         json_out = dict()
         json_out['words'] = words
         self.words_json = json_out
+
+        if show_ocr:
+            image = cv2.resize(image, None, fx=0.25, fy=0.25)
+            cv2.namedWindow('image')
+            cv2.imshow('image', image)
+            cv2.waitKey(0)
 
 
 

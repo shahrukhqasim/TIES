@@ -1,8 +1,38 @@
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.layout.GridPane?>
+<?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
+
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.canvas.Canvas?>
 <?import javafx.scene.control.Label?>
-<GridPane fx:controller="io.github.shahrukhqasim.ties.label.Controller"
-          xmlns:fx="http://javafx.com/fxml" alignment="center" hgap="10" vgap="10">
-</GridPane>
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0"
+            prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="io.github.shahrukhqasim.ties.label.Controller">
+
+    <top>
+        <FlowPane>
+            <Button text="Zoom In" onAction="#onZoomIn"></Button>
+            <Button text="Zoom Out"  onAction="#onZoomOut"></Button>
+            <Label text="Zoom: 1x" fx:id="zoomLabel"></Label>
+        </FlowPane>
+    </top>
+
+    <center>
+        <ScrollPane prefHeight="600" prefWidth="600" fx:id="scrollPane">
+            <content>
+                <Canvas fx:id="canvas" onMouseMoved="#onCanvasMoved" onMousePressed="#onCanvasPressed" onMouseReleased="#onCanvasReleased" onMouseDragged="#onCanvasDragged" height="1500.0" width="3000.0"/>
+            </content>
+        </ScrollPane>
+    </center>
+
+    <bottom>
+        <FlowPane>
+            <Button text="Open" alignment="CENTER"></Button>
+            <Button text="Save" alignment="CENTER"></Button>
+            <Button text="Next" alignment="CENTER"></Button>
+            <Button text="Previous" alignment="CENTER"></Button>
+        </FlowPane>
+    </bottom>
+</BorderPane>
