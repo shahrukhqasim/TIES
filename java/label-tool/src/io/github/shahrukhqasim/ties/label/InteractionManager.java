@@ -58,10 +58,17 @@ public class InteractionManager implements InteractionListener {
     }
 
     void select(boolean select, Vector<Box> boxes, double scale, Rectangle2D rectangle) {
-        for(Box box : boxes) {
+        for(Selectable box : boxes) {
             box.select(rectangle, scale);
         }
     }
+
+    void selectConnections(boolean select, Vector<Connection> boxes, double scale, Rectangle2D rectangle) {
+        for(Selectable box : boxes) {
+            box.select(rectangle, scale);
+        }
+    }
+
 
     private void dragReleasedWithoutConnection(Rectangle2D rectangle, double scale, MouseButton button) {
         selectionBox.setBoundingBox(new Rectangle2D(0,0,0,0));
@@ -69,11 +76,20 @@ public class InteractionManager implements InteractionListener {
             // For OCR
             select(true, this.boxesOcr.getBoxes(), scale, rectangle);
             select(true, boxesCell.getBoxes(), scale, new Rectangle2D(0,0,0,0));
+            selectConnections(true, connections.getConnections(), scale, new Rectangle2D(0,0,0,0));
         }
         else if (button == MouseButton.SECONDARY) {
             // For Cell boxes
             select(true, boxesCell.getBoxes(), scale, rectangle);
             select(true, boxesOcr.getBoxes(), scale, new Rectangle2D(0,0,0,0));
+            selectConnections(true, connections.getConnections(), scale, new Rectangle2D(0,0,0,0));
+        }
+        else if (button == MouseButton.MIDDLE) {
+            // For connections
+            selectConnections(true, connections.getConnections(), scale, rectangle);
+            select(true, boxesOcr.getBoxes(), scale, new Rectangle2D(0,0,0,0));
+            select(true, boxesCell.getBoxes(), scale, new Rectangle2D(0,0,0,0));
+
         }
     }
 
@@ -154,6 +170,15 @@ public class InteractionManager implements InteractionListener {
             }
             for (Box b:toBeDeleted) {
                 boxes.remove(b);
+            }
+            Vector<Connection> connections = this.connections.getConnections();
+            Vector<Connection> toBeDeletedConnections = new Vector<>();
+            for (Connection c : connections) {
+                if (c.isSelected())
+                    toBeDeletedConnections.add(c);
+            }
+            for (Connection c : toBeDeletedConnections) {
+                connections.remove(c);
             }
         }
 
