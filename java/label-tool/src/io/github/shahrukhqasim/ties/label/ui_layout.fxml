@@ -7,6 +7,7 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.canvas.Canvas?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ToggleButton?>
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0"
             prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="io.github.shahrukhqasim.ties.label.Controller" onKeyPressed="#onKeyPressed">
@@ -16,6 +17,8 @@
             <Button text="Zoom In" onAction="#onZoomIn"></Button>
             <Button text="Zoom Out"  onAction="#onZoomOut"></Button>
             <Label text="Zoom: 1x" fx:id="zoomLabel"></Label>
+            <ToggleButton text="Connect" fx:id="toggleButton" onAction="#onToggleConnect"></ToggleButton>
+            <Label text="File" fx:id="fileLabel"></Label>
         </FlowPane>
     </top>
 

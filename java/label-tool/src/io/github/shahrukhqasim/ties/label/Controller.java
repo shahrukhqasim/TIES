@@ -16,6 +16,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
 
+import javafx.scene.control.ToggleButton;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import org.json.*;
@@ -24,7 +25,9 @@ public class Controller {
     Drawable image;
     Boxes boxesOcr;
     Boxes boxesCells;
+    Connections connections;
     Drawable selectionBox;
+    Drawable selectionConnection;
     InteractionManager interactionManager;
     final Object lock = new Object();
     public ScrollPane scrollPane;
@@ -32,7 +35,9 @@ public class Controller {
     double scale = 1;
     Timer updater;
     public Label zoomLabel;
+    public Label fileLabel;
     private IOManager ioManager;
+    public ToggleButton toggleButton;
 
 
     public Controller() {
@@ -66,6 +71,8 @@ public class Controller {
             boxesOcr.draw(graphics2D, visibleRect, scale);
             boxesCells.draw(graphics2D, visibleRect, scale);
             selectionBox.draw(graphics2D, visibleRect, scale);
+            selectionConnection.draw(graphics2D, visibleRect, scale);
+            connections.draw(graphics2D, visibleRect, scale);
         }
     }
 
@@ -73,7 +80,6 @@ public class Controller {
     @FXML
     void onZoomIn() {
         synchronized (lock) {
-            System.out.println("Zooming in!");
             if (scale == 2)
                 return;
             scale += 0.25;
@@ -87,7 +93,6 @@ public class Controller {
     @FXML
     void onZoomOut() {
         synchronized (lock) {
-            System.out.println("Zooming out!");
             if (scale == 0.25)
                 return;
             scale -= 0.25;
@@ -122,7 +127,7 @@ public class Controller {
     void onCanvasDragged(MouseEvent event) {
         synchronized (lock) {
             Point2D endPoint = new Point2D(event.getX(), event.getY());
-            interactionManager.drag(new Rectangle2D(Math.min(startPointClick.getX(), endPoint.getX()), Math.min(startPointClick.getY(), endPoint.getY()), Math.abs(endPoint.getX() - startPointClick.getX()), Math.abs(endPoint.getY() - startPointClick.getY())), scale);
+            interactionManager.drag(startPointClick, endPoint, scale);
         }
     }
 
@@ -151,5 +156,10 @@ public class Controller {
     @FXML
     void onSave() {
 
+    }
+
+    @FXML
+    void onToggleConnect() {
+        this.interactionManager.onToggleConnect(toggleButton.isSelected());
     }
 }

@@ -14,7 +14,10 @@ public abstract class Box implements Selectable, Drawable {
     public abstract Paint getStroke();
 
     public Box(Rectangle2D box) {
-        this.box = box;
+        if(box!=null)
+            this.box = box;
+        else
+            throw new NullPointerException("Box is null");
     }
 
     @Override
@@ -24,6 +27,15 @@ public abstract class Box implements Selectable, Drawable {
             selected = true;
         else
             selected = false;
+    }
+
+    public boolean willBeSelected(Rectangle2D selectionArea, double scale) {
+        Rectangle2D selectionAreaInMemory  = new Rectangle2D(selectionArea.getMinX() / scale, selectionArea.getMinY() / scale, selectionArea.getWidth() / scale, selectionArea.getHeight() / scale);
+        if (box.intersects(selectionAreaInMemory))
+            return true;
+        else
+            return false;
+
     }
 
     @Override

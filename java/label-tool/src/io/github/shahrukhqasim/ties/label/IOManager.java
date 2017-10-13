@@ -110,7 +110,6 @@ public class IOManager {
                     boxes.add(box);
                 }
             }
-            System.out.println("Boxes of cells size is " + boxes.size());
             controller.boxesCells = new Boxes(boxes);
         }
         catch (Exception e) {
@@ -131,9 +130,11 @@ public class IOManager {
                 controller.scale = 1;
                 loadOcrBoxes();
                 loadCellBoxes();
+                controller.connections = new Connections(new Vector<>());
 
-                controller.interactionManager = new InteractionManager(controller.boxesOcr, controller.boxesCells);
+                controller.interactionManager = new InteractionManager(controller.boxesOcr, controller.boxesCells, controller.connections);
                 controller.selectionBox = controller.interactionManager.getSelectionBox();
+                controller.selectionConnection = controller.interactionManager.getSelectionConnection();
 
                 controller.image = new RasterImage(SwingFXUtils.toFXImage(ImageIO.read(new File(this.imagePath)), null));
                 controller.canvas.setWidth(controller.image.getBoundingBox(controller.scale).getWidth());
@@ -150,24 +151,28 @@ public class IOManager {
                         }
                     }
                 }, 100, 100);
+                controller.fileLabel.setText(imagePath);
             }
             catch (Exception e) {
                 e.printStackTrace();
             }
         }
+        controller.onZoomOut();
+        controller.onZoomOut();
+        controller.onZoomOut();
+        controller.onZoomOut();
     }
 
 
     void open(boolean haveTo) {
         try {
             synchronized (controller.lock) {
-                FileChooser chooser = new FileChooser();
-                chooser.setTitle("Open File");
-                File file = chooser.showOpenDialog(new Stage());
+//                FileChooser chooser = new FileChooser();
+//                chooser.setTitle("Open File");
+                File file = new File("/home/srq/Datasets/tables/unlv/sorted/samples.txt");//chooser.showOpenDialog(new Stage());
                 if (file == null) {
                     throw new Exception("Error in opening file");
                 }
-                System.out.println("Selected " + file.getAbsolutePath());
                 String listOfDirectories = Utils.readTextFile(file.getAbsolutePath());
                 this.listOfDirectories = listOfDirectories.split("\\r?\\n");
                 if (this.listOfDirectories.length == 0) {
@@ -178,8 +183,6 @@ public class IOManager {
                 this.cellsPath = this.listOfDirectories[0] + "/cells.json";
                 this.ocrPath = this.listOfDirectories[0] + "/ocr.json";
                 this.logicalCellsPath = this.listOfDirectories[0] + "/cells_logical.json";
-
-                System.out.println("Working on " + this.listOfDirectories[0] + "/cells.json");
             }
             load();
 
