@@ -13,6 +13,7 @@ public class Connection implements Drawable, Selectable {
     Point2D p1;
     Point2D p2;
     boolean selected;
+    CellBox nodeA, nodeB;
 
     public Paint getStroke() {
         if (selected)
@@ -21,10 +22,12 @@ public class Connection implements Drawable, Selectable {
             return Color.color(0, 1, 0);
     }
 
-    public Connection(Point2D p1, Point2D p2) {
+    public Connection(Point2D p1, Point2D p2, CellBox nodeA, CellBox nodeB) {
         if(p1!=null && p2!=null) {
             this.p1 = p1;
             this.p2 = p2;
+            this.nodeA = nodeA;
+            this.nodeB = nodeB;
         }
         else
             throw new NullPointerException("Box is null");
@@ -66,5 +69,13 @@ public class Connection implements Drawable, Selectable {
     @Override
     public Rectangle2D getBoundingBox(double scale) {
         return new Rectangle2D(Math.min(p1.getX(), p2.getX()), Math.min(p1.getY(), p2.getY()), Math.abs(p2.getX() - p1.getX()), Math.abs(p2.getY() - p1.getY()));
+    }
+
+    public CellBox getNodeA() {
+        return nodeA;
+    }
+
+    public CellBox getNodeB() {
+        return nodeB;
     }
 }

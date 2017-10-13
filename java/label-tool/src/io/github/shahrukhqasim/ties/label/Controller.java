@@ -155,7 +155,7 @@ public class Controller {
 
     @FXML
     void onSave() {
-
+        this.ioManager.save();
     }
 
     @FXML

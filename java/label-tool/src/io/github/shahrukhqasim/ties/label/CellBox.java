@@ -8,9 +8,16 @@ import javafx.scene.paint.Paint;
  * Created by srq on 12.10.17.
  */
 public class CellBox extends Box {
+    static int idNext = 0;
+    int id;
 
     public CellBox(Rectangle2D box) {
         super(box);
+        this.id = idNext++;
+    }
+
+    public int getId() {
+        return id;
     }
 
     @Override

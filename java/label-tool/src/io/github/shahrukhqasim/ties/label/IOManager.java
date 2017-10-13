@@ -9,7 +9,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import javax.imageio.ImageIO;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -222,4 +224,46 @@ public class IOManager {
         toNewIndex(currentIndex - 1);
         load();
     }
+    void save() {
+        try {
+            JSONObject jsonComplete = new JSONObject();
+            JSONArray jsonCellsArray = new JSONArray();
+            // Iterate through all the cells
+            Vector<Box> cellBoxes = controller.boxesCells.getBoxes();
+            for (Box b : cellBoxes) {
+                JSONObject jsonCellObject = new JSONObject();
+                CellBox cellBox = (CellBox)b;
+                jsonCellObject.put("id", cellBox.getId());
+                Rectangle2D boundingRect = cellBox.getBoundingBox(1);
+                jsonCellObject.put("x1", boundingRect.getMinX());
+                jsonCellObject.put("y1", boundingRect.getMinY());
+                jsonCellObject.put("x2", boundingRect.getMaxX());
+                jsonCellObject.put("y2", boundingRect.getMaxY());
+                jsonCellsArray.put(jsonCellObject);
+            }
+            // Iterate through connections
+            Vector<Connection> connections = controller.connections.getConnections();
+            JSONArray jsonConnectionsArray = new JSONArray();
+            for (Connection c : connections) {
+                JSONObject jsonConnectionObject = new JSONObject();
+                jsonConnectionObject.put("child_node", c.getNodeA().getId());
+                jsonConnectionObject.put("parent_node", c.getNodeB().getId());
+                jsonConnectionsArray.put(jsonConnectionObject);
+            }
+
+            // Add cells and connections to complete json object
+            jsonComplete.put("cells", jsonCellsArray);
+            jsonComplete.put("connections", jsonConnectionsArray);
+
+            // Write to the output file
+            String encodedJson = jsonComplete.toString();
+            BufferedWriter writer = new BufferedWriter(new FileWriter(logicalCellsPath));
+            writer.write (encodedJson);
+            writer.close();
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 }
