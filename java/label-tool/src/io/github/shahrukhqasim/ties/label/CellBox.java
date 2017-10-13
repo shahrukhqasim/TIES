@@ -16,6 +16,11 @@ public class CellBox extends Box {
         this.id = idNext++;
     }
 
+    public CellBox(Rectangle2D box, int id) {
+        super(box);
+        this.id = id;
+    }
+
     public int getId() {
         return id;
     }

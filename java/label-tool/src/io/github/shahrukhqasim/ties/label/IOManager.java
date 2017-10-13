@@ -1,6 +1,7 @@
 package io.github.shahrukhqasim.ties.label;
 
 import javafx.embed.swing.SwingFXUtils;
+import javafx.geometry.Point2D;
 import javafx.geometry.Rectangle2D;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
@@ -12,10 +13,7 @@ import javax.imageio.ImageIO;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.Vector;
+import java.util.*;
 
 /**
  * Created by srq on 13.10.17.
@@ -60,63 +58,111 @@ public class IOManager {
         }
     }
 
-    private void loadCellBoxes() {
+    /**
+     * Loads cell boxes into memory. If connections are also loaded, returns true otherwise false
+     *
+     * Tries to find logical cell boxes with the help of OCR boxes and proposed structured cell boxes. However, if the
+     * file for logical cell boxes already exists, it just picks logical cell boxes and connections from there.
+     *
+     * @return true if it also loads connections
+     */
+    private boolean loadCellBoxes() {
         if (controller.boxesOcr == null) {
-            System.err.println("Error loaded cell boxes");
+            System.err.println("Error loading cell boxes");
         }
 
         try {
-            String path = this.cellsPath;
-            String text = Utils.readTextFile(path);
-
-            JSONObject json = new JSONObject(text);
-            JSONArray array = json.getJSONArray("cells");
-
-            Vector<Box> ocrBoxes = controller.boxesOcr.getBoxes();
-
-            Vector<Box> boxes = new Vector<>();
-            for (int i = 0; i < array.length(); i++) {
-                JSONObject object = array.getJSONObject(i);
-                int x1 = object.getInt("x1");
-                int y1 = object.getInt("y1");
-                int width = object.getInt("x2") - x1;
-                int height = object.getInt("y2") - y1;
-                Rectangle2D rectangle2D = new Rectangle2D(x1, y1, width, height);
-
-                Rectangle2D innerRect = null;
-
-                for (int j = 0; j < ocrBoxes.size(); j++) {
-                    Rectangle2D ocrRectangle = ocrBoxes.get(j).getBoundingBox(controller.scale);
-                    boolean intersectionCriteriaMet = false;
-                    Rectangle2D intersectionRect = null;
-                    if (ocrRectangle.intersects(rectangle2D)) {
-                        intersectionRect = Utils.intersection(rectangle2D, ocrRectangle);
-                        double areaIntersection = intersectionRect.getWidth() * intersectionRect.getHeight();
-                        double areaOriginal = ocrRectangle.getWidth() * ocrRectangle.getHeight();
-                        if (areaIntersection > 0.9*areaOriginal) {
-                            intersectionCriteriaMet = true;
-                        }
-                    }
-                    if (intersectionCriteriaMet) {
-                        if (innerRect == null) {
-                            innerRect = intersectionRect;
-                        }
-                        else {
-                            innerRect = Utils.union(innerRect, intersectionRect);
-                        }
-                    }
+            // If logical cells file already exists, just pick the cells and connections from there
+            File logicalCellsFile = new File(this.logicalCellsPath);
+            HashMap<Integer, CellBox> mapOfCellBoxes = new HashMap<>();
+            if (logicalCellsFile.exists()) {
+                String text = Utils.readTextFile(this.logicalCellsPath);
+                JSONObject json = new JSONObject(text);
+                JSONArray array = json.getJSONArray("cells");
+                Vector<Box> boxes = new Vector<>();
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject object = array.getJSONObject(i);
+                    int x1 = object.getInt("x1");
+                    int y1 = object.getInt("y1");
+                    int width = object.getInt("x2") - x1;
+                    int height = object.getInt("y2") - y1;
+                    int id = object.getInt("id");
+                    Rectangle2D rectangle2D = new Rectangle2D(x1, y1, width, height);
+                    CellBox cellBox = new CellBox(rectangle2D, id);
+                    boxes.add(cellBox);
+                    mapOfCellBoxes.put(id, cellBox);
+                }
+                array = json.getJSONArray("connections");
+                Vector<Connection>connections = new Vector<>();
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject object = array.getJSONObject(i);
+                    int childNode = object.getInt("child_node");
+                    int parentNode = object.getInt("parent_node");
+                    CellBox nodeA = mapOfCellBoxes.get(childNode);
+                    CellBox nodeB = mapOfCellBoxes.get(parentNode);
+                    Point2D endPoint = new Point2D(nodeB.getBoundingBox(1).getMaxX(), nodeB.getBoundingBox(1).getMaxY());
+                    Point2D startPoint = new Point2D(nodeA.getBoundingBox(1).getMinX(), nodeA.getBoundingBox(1).getMinY());
+                    Connection connection = new Connection(startPoint, endPoint, nodeA, nodeB);
+                    connections.add(connection);
                 }
 
-                if (innerRect != null) {
-                    CellBox box = new CellBox(innerRect);
-                    boxes.add(box);
-                }
+                controller.boxesCells = new Boxes(boxes);
+                controller.connections = new Connections(connections);
+                return true;
             }
-            controller.boxesCells = new Boxes(boxes);
+            else {
+                String path = this.cellsPath;
+                String text = Utils.readTextFile(path);
+
+                JSONObject json = new JSONObject(text);
+                JSONArray array = json.getJSONArray("cells");
+
+                Vector<Box> ocrBoxes = controller.boxesOcr.getBoxes();
+
+                Vector<Box> boxes = new Vector<>();
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject object = array.getJSONObject(i);
+                    int x1 = object.getInt("x1");
+                    int y1 = object.getInt("y1");
+                    int width = object.getInt("x2") - x1;
+                    int height = object.getInt("y2") - y1;
+                    Rectangle2D rectangle2D = new Rectangle2D(x1, y1, width, height);
+
+                    Rectangle2D innerRect = null;
+
+                    for (int j = 0; j < ocrBoxes.size(); j++) {
+                        Rectangle2D ocrRectangle = ocrBoxes.get(j).getBoundingBox(controller.scale);
+                        boolean intersectionCriteriaMet = false;
+                        Rectangle2D intersectionRect = null;
+                        if (ocrRectangle.intersects(rectangle2D)) {
+                            intersectionRect = Utils.intersection(rectangle2D, ocrRectangle);
+                            double areaIntersection = intersectionRect.getWidth() * intersectionRect.getHeight();
+                            double areaOriginal = ocrRectangle.getWidth() * ocrRectangle.getHeight();
+                            if (areaIntersection > 0.9 * areaOriginal) {
+                                intersectionCriteriaMet = true;
+                            }
+                        }
+                        if (intersectionCriteriaMet) {
+                            if (innerRect == null) {
+                                innerRect = intersectionRect;
+                            } else {
+                                innerRect = Utils.union(innerRect, intersectionRect);
+                            }
+                        }
+                    }
+
+                    if (innerRect != null) {
+                        CellBox box = new CellBox(innerRect);
+                        boxes.add(box);
+                    }
+                }
+                controller.boxesCells = new Boxes(boxes);
+            }
         }
         catch (Exception e) {
             e.printStackTrace();
         }
+        return false;
     }
 
     void initialize() {
@@ -131,8 +177,8 @@ public class IOManager {
                     controller.updater.cancel();
                 controller.scale = 1;
                 loadOcrBoxes();
-                loadCellBoxes();
-                controller.connections = new Connections(new Vector<>());
+                if (!loadCellBoxes())
+                    controller.connections = new Connections(new Vector<>());
 
                 controller.interactionManager = new InteractionManager(controller.boxesOcr, controller.boxesCells, controller.connections);
                 controller.selectionBox = controller.interactionManager.getSelectionBox();

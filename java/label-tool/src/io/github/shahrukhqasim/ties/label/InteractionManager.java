@@ -114,7 +114,7 @@ public class InteractionManager implements InteractionListener {
             if (!multipleSelected && willBeSelected != null) {
                 Point2D endPoint = new Point2D(willBeSelected.getBoundingBox(scale).getMaxX(), willBeSelected.getBoundingBox(scale).getMaxY());
                 for (Box alreadySelectedBox : selectedBoxes) {
-                    Point2D startPoint = new Point2D(alreadySelectedBox.getBoundingBox(scale).getMinX(), alreadySelectedBox.getBoundingBox(scale).getMinY());
+                        Point2D startPoint = new Point2D(alreadySelectedBox.getBoundingBox(scale).getMinX(), alreadySelectedBox.getBoundingBox(scale).getMinY());
                     Connection newConnection = new Connection(startPoint, endPoint, ((CellBox)alreadySelectedBox), (CellBox)willBeSelected);
                     connections.getConnections().add(newConnection);
                 }
