@@ -20,14 +20,21 @@ import java.util.Vector;
  */
 public class IOManager {
     Controller controller;
-    List<String> listOfDirectories;
+    String[] listOfDirectories;
     IOManager(Controller controller) {
         this.controller = controller;
     }
 
+    String imagePath;
+    String ocrPath;
+    String cellsPath;
+    String logicalCellsPath;
+
+    int currentIndex = 0;
+
     private void loadOcrBoxes() {
         try {
-            String path = "/home/srq/Datasets/tables/unlv/sorted/0101_003-0/ocr.json";
+            String path = this.ocrPath;
             String text = Utils.readTextFile(path);
 
             JSONObject json = new JSONObject(text);
@@ -57,7 +64,7 @@ public class IOManager {
         }
 
         try {
-            String path = "/home/srq/Datasets/tables/unlv/sorted/0101_003-0/cells.json";
+            String path = this.cellsPath;
             String text = Utils.readTextFile(path);
 
             JSONObject json = new JSONObject(text);
@@ -112,6 +119,11 @@ public class IOManager {
     }
 
     void initialize() {
+        open(true);
+        load();
+    }
+
+    void load() {
         synchronized (controller.lock) {
             try {
                 if (controller.updater != null)
@@ -123,7 +135,7 @@ public class IOManager {
                 controller.interactionManager = new InteractionManager(controller.boxesOcr, controller.boxesCells);
                 controller.selectionBox = controller.interactionManager.getSelectionBox();
 
-                controller.image = new RasterImage(SwingFXUtils.toFXImage(ImageIO.read(new File("/home/srq/Datasets/tables/unlv/sorted/0101_003-0/image.png")), null));
+                controller.image = new RasterImage(SwingFXUtils.toFXImage(ImageIO.read(new File(this.imagePath)), null));
                 controller.canvas.setWidth(controller.image.getBoundingBox(controller.scale).getWidth());
                 controller.canvas.setHeight(controller.image.getBoundingBox(controller.scale).getHeight());
 
@@ -146,27 +158,65 @@ public class IOManager {
     }
 
 
-    void open() {
+    void open(boolean haveTo) {
         try {
-            FileChooser chooser = new FileChooser();
-            chooser.setTitle("Open File");
-            File file = chooser.showOpenDialog(new Stage());
-            if (file == null)
-                System.exit(-1);
-            String listOfDirectories = Utils.readTextFile(file.getAbsolutePath());
-            String lines[] = listOfDirectories.split("\\r?\\n");
-            System.out.print(lines.length);
+            synchronized (controller.lock) {
+                FileChooser chooser = new FileChooser();
+                chooser.setTitle("Open File");
+                File file = chooser.showOpenDialog(new Stage());
+                if (file == null) {
+                    throw new Exception("Error in opening file");
+                }
+                System.out.println("Selected " + file.getAbsolutePath());
+                String listOfDirectories = Utils.readTextFile(file.getAbsolutePath());
+                this.listOfDirectories = listOfDirectories.split("\\r?\\n");
+                if (this.listOfDirectories.length == 0) {
+                    throw new Exception("Nothing in the file");
+                }
+                currentIndex = 0;
+                this.imagePath = this.listOfDirectories[0] + "/image.png";
+                this.cellsPath = this.listOfDirectories[0] + "/cells.json";
+                this.ocrPath = this.listOfDirectories[0] + "/ocr.json";
+                this.logicalCellsPath = this.listOfDirectories[0] + "/cells_logical.json";
+
+                System.out.println("Working on " + this.listOfDirectories[0] + "/cells.json");
+            }
+            load();
 
         }
         catch (Exception e) {
             e.printStackTrace();
-            System.exit(-1);
+            if (haveTo)
+                System.exit(-1);
         }
     }
-    void next() {
+
+    void toNewIndex(int newIndex) {
+        try {
+            String dir = this.listOfDirectories[newIndex];
+            if (dir.length()==0)
+                throw new Exception("Empty");
+
+            this.imagePath = dir + "/image.png";
+            this.cellsPath = dir + "/cells.json";
+            this.ocrPath = dir + "/ocr.json";
+            this.logicalCellsPath = dir + "/cells_logical.json";
+
+            this.currentIndex = newIndex;
+
+        }
+        catch (Exception e) {
+
+        }
 
     }
-    void previous() {
 
+    void next() {
+        toNewIndex(currentIndex + 1);
+        load();
+    }
+    void previous() {
+        toNewIndex(currentIndex - 1);
+        load();
     }
 }

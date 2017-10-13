@@ -135,17 +135,17 @@ public class Controller {
 
     @FXML
     void onOpen() {
-        this.ioManager.open();
+        this.ioManager.open(false);
     }
 
     @FXML
     void onNext() {
-
+        this.ioManager.next();
     }
 
     @FXML
     void onPrevious() {
-
+        this.ioManager.previous();
     }
 
     @FXML
