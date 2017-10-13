@@ -71,7 +71,7 @@ class UnlvConverter:
             json.dump(self.words_json, f)
         with open(os.path.join(sorted_path_full, 'table.json'), 'w') as f:
             json.dump(table_json, f)
-        shutil.copy(self.png_path, os.path.join(sorted_path_full, '%s.png' % self.id))
+        shutil.copy(self.png_path, os.path.join(sorted_path_full, 'image.png'))
 
         if show:
             image = cv2.resize(image, None, fx=0.25, fy=0.25)

@@ -21,140 +21,29 @@ import javafx.scene.input.MouseEvent;
 import org.json.*;
 
 public class Controller {
-    private Drawable image;
-    private Boxes boxesOcr;
-    private Boxes boxesCells;
-    private Drawable selectionBox;
-    private InteractionManager interactionManager;
-    private final Object lock = new Object();
+    Drawable image;
+    Boxes boxesOcr;
+    Boxes boxesCells;
+    Drawable selectionBox;
+    InteractionManager interactionManager;
+    final Object lock = new Object();
     public ScrollPane scrollPane;
     public Canvas canvas;
-    private double scale = 1;
-    private Timer updater;
+    double scale = 1;
+    Timer updater;
     public Label zoomLabel;
+    private IOManager ioManager;
 
 
     public Controller() {
     }
 
-    private void loadOcrBoxes() {
-        try {
-            String path = "/home/srq/Datasets/tables/unlv/sorted/0101_003-0/ocr.json";
-            String text = Utils.readTextFile(path);
-
-            JSONObject json = new JSONObject(text);
-            JSONArray array = json.getJSONArray("words");
-
-            Vector<Box> boxes = new Vector<>();
-            for (int i = 0; i < array.length(); i++) {
-                JSONObject object = array.getJSONObject(i);
-                int x1 = object.getInt("x1");
-                int y1 = object.getInt("y1");
-                int width = object.getInt("x2") - x1;
-                int height = object.getInt("y2") - y1;
-                Rectangle2D rectangle2D = new Rectangle2D(x1, y1, width, height);
-                OcrBox box = new OcrBox(rectangle2D);
-                boxes.add(box);
-            }
-            this.boxesOcr = new Boxes(boxes);
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void loadCellBoxes() {
-        if (boxesOcr == null) {
-            System.err.println("Error loaded cell boxes");
-        }
-
-        try {
-            String path = "/home/srq/Datasets/tables/unlv/sorted/0101_003-0/cells.json";
-            String text = Utils.readTextFile(path);
-
-            JSONObject json = new JSONObject(text);
-            JSONArray array = json.getJSONArray("cells");
-
-            Vector<Box> ocrBoxes = boxesOcr.getBoxes();
-
-            Vector<Box> boxes = new Vector<>();
-            for (int i = 0; i < array.length(); i++) {
-                JSONObject object = array.getJSONObject(i);
-                int x1 = object.getInt("x1");
-                int y1 = object.getInt("y1");
-                int width = object.getInt("x2") - x1;
-                int height = object.getInt("y2") - y1;
-                Rectangle2D rectangle2D = new Rectangle2D(x1, y1, width, height);
-
-                Rectangle2D innerRect = null;
-
-                for (int j = 0; j < ocrBoxes.size(); j++) {
-                    Rectangle2D ocrRectangle = ocrBoxes.get(j).getBoundingBox(scale);
-                    boolean intersectionCriteriaMet = false;
-                    Rectangle2D intersectionRect = null;
-                    if (ocrRectangle.intersects(rectangle2D)) {
-                        intersectionRect = Utils.intersection(rectangle2D, ocrRectangle);
-                        double areaIntersection = intersectionRect.getWidth() * intersectionRect.getHeight();
-                        double areaOriginal = ocrRectangle.getWidth() * ocrRectangle.getHeight();
-                        if (areaIntersection > 0.9*areaOriginal) {
-                            intersectionCriteriaMet = true;
-                        }
-                    }
-                    if (intersectionCriteriaMet) {
-                        if (innerRect == null) {
-                            innerRect = intersectionRect;
-                        }
-                        else {
-                            innerRect = Utils.union(innerRect, intersectionRect);
-                        }
-                    }
-                }
-
-                if (innerRect != null) {
-                    CellBox box = new CellBox(innerRect);
-                    boxes.add(box);
-                }
-            }
-            System.out.println("Boxes of cells size is " + boxes.size());
-            this.boxesCells = new Boxes(boxes);
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     void initialize() {
-        synchronized (lock) {
-            try {
-                loadOcrBoxes();
-                loadCellBoxes();
-
-                this.interactionManager = new InteractionManager(this.boxesOcr, this.boxesCells);
-                this.selectionBox = this.interactionManager.getSelectionBox();
-
-                image = new RasterImage(SwingFXUtils.toFXImage(ImageIO.read(new File("/home/srq/Datasets/tables/unlv/sorted/0101_003-0/0101_003.png")), null));
-                canvas.setWidth(image.getBoundingBox(scale).getWidth());
-                canvas.setHeight(image.getBoundingBox(scale).getHeight());
-
-                updater = new Timer();
-                updater.scheduleAtFixedRate(new TimerTask() {
-                    @Override
-                    public void run() {
-                        try {
-                            redraw();
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }, 100, 100);
-            }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+        this.ioManager = new IOManager(this);
+        this.ioManager.initialize();
     }
 
-    private void redraw() {
+    void redraw() {
         synchronized (lock) {
             double vValue = scrollPane.getVvalue();
             double hValue = scrollPane.getHvalue();
@@ -242,5 +131,25 @@ public class Controller {
         synchronized (lock) {
             interactionManager.keyPressed(scale, event.getCode());
         }
+    }
+
+    @FXML
+    void onOpen() {
+        this.ioManager.open();
+    }
+
+    @FXML
+    void onNext() {
+
+    }
+
+    @FXML
+    void onPrevious() {
+
+    }
+
+    @FXML
+    void onSave() {
+
     }
 }

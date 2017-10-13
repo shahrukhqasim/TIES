@@ -29,10 +29,10 @@
 
     <bottom>
         <FlowPane>
-            <Button text="Open" alignment="CENTER"></Button>
-            <Button text="Save" alignment="CENTER"></Button>
-            <Button text="Next" alignment="CENTER"></Button>
-            <Button text="Previous" alignment="CENTER"></Button>
+            <Button text="Open" alignment="CENTER" onAction="#onOpen"></Button>
+            <Button text="Save" alignment="CENTER" onAction="#onSave"></Button>
+            <Button text="Next" alignment="CENTER" onAction="#onNext"></Button>
+            <Button text="Previous" alignment="CENTER" onAction="#onPrevious"></Button>
         </FlowPane>
     </bottom>
 </BorderPane>
