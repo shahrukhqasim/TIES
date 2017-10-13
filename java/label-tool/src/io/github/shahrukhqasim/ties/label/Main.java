@@ -10,7 +10,7 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception{
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("sample.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("ui_layout.fxml"));
         Parent root = loader.load();
         Controller controller = loader.getController();
         primaryStage.setTitle("TIES - Label Tool");

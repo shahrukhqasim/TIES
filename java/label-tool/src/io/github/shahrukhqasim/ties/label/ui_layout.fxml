@@ -9,7 +9,7 @@
 <?import javafx.scene.control.Label?>
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0"
             prefWidth="800.0" xmlns="http://javafx.com/javafx/8.0.112" xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="io.github.shahrukhqasim.ties.label.Controller">
+            fx:controller="io.github.shahrukhqasim.ties.label.Controller" onKeyPressed="#onKeyPressed">
 
     <top>
         <FlowPane>

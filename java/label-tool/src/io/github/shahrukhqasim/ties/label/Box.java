@@ -2,7 +2,7 @@ package io.github.shahrukhqasim.ties.label;
 
 import javafx.geometry.Rectangle2D;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
 
 /**
  * Created by srq on 12.10.17.
@@ -11,14 +11,14 @@ public abstract class Box implements Selectable, Drawable {
     Rectangle2D box;
     boolean selected;
 
-    public abstract Color getStroke();
+    public abstract Paint getStroke();
 
     public Box(Rectangle2D box) {
         this.box = box;
     }
 
     @Override
-    public void select(Rectangle2D selectionArea, float scale) {
+    public void select(Rectangle2D selectionArea, double scale) {
         Rectangle2D selectionAreaInMemory  = new Rectangle2D(selectionArea.getMinX() / scale, selectionArea.getMinY() / scale, selectionArea.getWidth() / scale, selectionArea.getHeight() / scale);
         if (box.intersects(selectionAreaInMemory))
             selected = true;
@@ -35,6 +35,14 @@ public abstract class Box implements Selectable, Drawable {
 
         graphics.setStroke(getStroke());
         graphics.strokeRect(x * scale, y * scale, width * scale, height * scale);
+    }
+
+    public void setBoundingBox(Rectangle2D box) {
+        this.box = box;
+    }
+
+    boolean isSelected() {
+        return selected;
     }
 
     @Override

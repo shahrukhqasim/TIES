@@ -16,11 +16,15 @@ public class Boxes implements Drawable, Selectable {
     }
 
     @Override
-    public void select(Rectangle2D selectionArea, float scale) {
+    public void select(Rectangle2D selectionArea, double scale) {
         for (Box box : boxes) {
             box.select(selectionArea, scale);
         }
 
+    }
+
+    public Vector<Box> getBoxes() {
+        return boxes;
     }
 
     @Override
@@ -28,14 +32,6 @@ public class Boxes implements Drawable, Selectable {
         for (Box box : boxes) {
             box.draw(graphics, visibleArea, scale);
         }
-    }
-
-    public Rectangle2D union(Rectangle2D a, Rectangle2D b) {
-        double x1 = Math.min(a.getMinX(), b.getMinX());
-        double y1 = Math.min(a.getMinY(), b.getMinY());
-        double x2 = Math.min(a.getMaxX(), b.getMaxX());
-        double y2 = Math.min(a.getMaxY(), b.getMaxY());
-        return new Rectangle2D(x1, y1, x2 - x1, y2 - y1);
     }
 
     @Override
@@ -46,7 +42,7 @@ public class Boxes implements Drawable, Selectable {
         else {
             Rectangle2D boundingBox = boxes.get(0).getBoundingBox(scale);
             for (Box box : boxes) {
-                boundingBox = union(boundingBox, box.getBoundingBox(scale));
+                boundingBox = Utils.union(boundingBox, box.getBoundingBox(scale));
             }
             return boundingBox;
         }
