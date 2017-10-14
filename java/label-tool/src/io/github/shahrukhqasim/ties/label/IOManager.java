@@ -1,5 +1,9 @@
 package io.github.shahrukhqasim.ties.label;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Point2D;
 import javafx.geometry.Rectangle2D;
@@ -10,6 +14,7 @@ import javax.imageio.ImageIO;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
+import javafx.util.Duration;
 import java.util.*;
 
 /**
@@ -170,8 +175,6 @@ public class IOManager {
     void load() {
         synchronized (controller.lock) {
             try {
-                if (controller.updater != null)
-                    controller.updater.cancel();
                 controller.scale = 1;
                 loadOcrBoxes();
                 if (!loadCellBoxes())
@@ -186,17 +189,23 @@ public class IOManager {
                 controller.canvas.setWidth(controller.image.getBoundingBox(controller.scale).getWidth());
                 controller.canvas.setHeight(controller.image.getBoundingBox(controller.scale).getHeight());
 
-                controller.updater = new Timer();
-                controller.updater.scheduleAtFixedRate(new TimerTask() {
+                Task task = new Task<Void>() {
                     @Override
-                    public void run() {
-                        try {
-                            controller.redraw();
-                        } catch (Exception e) {
-                            e.printStackTrace();
+                    public Void call() throws Exception {
+                        while (true) {
+                            Platform.runLater(new Runnable() {
+                                @Override
+                                public void run() {
+                                    controller.redraw();
+                                }
+                            });
+                            Thread.sleep(100);
                         }
                     }
-                }, 100, 100);
+                };
+                Thread th = new Thread(task);
+                th.setDaemon(true);
+                th.start();
                 controller.fileLabel.setText(imagePath);
             }
             catch (Exception e) {

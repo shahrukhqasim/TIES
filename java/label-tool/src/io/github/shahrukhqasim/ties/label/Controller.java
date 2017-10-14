@@ -9,6 +9,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 
 import java.util.Timer;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javafx.scene.control.ToggleButton;
 import javafx.scene.input.KeyEvent;
@@ -23,6 +25,8 @@ public class Controller {
     Drawable selectionConnection;
     InteractionManager interactionManager;
     final Object lock = new Object();
+    final Lock lockDraw = new ReentrantLock();
+
     public ScrollPane scrollPane;
     public Canvas canvas;
     double scale = 1;
@@ -44,6 +48,8 @@ public class Controller {
 
     void redraw() {
         synchronized (lock) {
+            long startTime = System.nanoTime();
+
             double vValue = scrollPane.getVvalue();
             double hValue = scrollPane.getHvalue();
 
@@ -67,6 +73,9 @@ public class Controller {
             selectionBox.draw(graphics2D, visibleRect, scale);
             selectionConnection.draw(graphics2D, visibleRect, scale);
             connections.draw(graphics2D, visibleRect, scale);
+
+            long endTime = System.nanoTime();
+            long duration = (endTime - startTime) / 1000000;
         }
     }
 
@@ -110,10 +119,8 @@ public class Controller {
     @FXML
     void onCanvasReleased(MouseEvent event) {
         synchronized (lock) {
-            synchronized (lock) {
-                Point2D endPoint = new Point2D(event.getX(), event.getY());
-                interactionManager.dragReleased(new Rectangle2D(Math.min(startPointClick.getX(), endPoint.getX()), Math.min(startPointClick.getY(), endPoint.getY()), Math.abs(endPoint.getX() - startPointClick.getX()), Math.abs(endPoint.getY() - startPointClick.getY())), scale, event.getButton());
-            }
+            Point2D endPoint = new Point2D(event.getX(), event.getY());
+            interactionManager.dragReleased(new Rectangle2D(Math.min(startPointClick.getX(), endPoint.getX()), Math.min(startPointClick.getY(), endPoint.getY()), Math.abs(endPoint.getX() - startPointClick.getX()), Math.abs(endPoint.getY() - startPointClick.getY())), scale, event.getButton());
         }
 
     }
