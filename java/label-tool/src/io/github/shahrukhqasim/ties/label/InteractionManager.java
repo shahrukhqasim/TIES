@@ -94,12 +94,13 @@ public class InteractionManager implements InteractionListener {
     }
 
     private void dragReleasedWithConnection(Rectangle2D rectangle, double scale, MouseButton button) {
-        if (button != MouseButton.SECONDARY)
-            return;
-        select(true, boxesOcr.getBoxes(), scale, new Rectangle2D(0,0,0,0));
-        selectionBox.setBoundingBox(new Rectangle2D(0,0,0,0));
-
         selectionConnection.setPoints(new Point2D(0,0), new Point2D(0,0));
+        selectionBox.setBoundingBox(new Rectangle2D(0,0,0,0));
+        if (button != MouseButton.SECONDARY) {
+            return;
+        }
+        select(true, boxesOcr.getBoxes(), scale, new Rectangle2D(0,0,0,0));
+
 
         Vector<Box> boxes = boxesCell.getBoxes();
         Vector<Box> selectedBoxes = new Vector<>();
