@@ -189,21 +189,23 @@ public class IOManager {
                 controller.canvas.setWidth(controller.image.getBoundingBox(controller.scale).getWidth());
                 controller.canvas.setHeight(controller.image.getBoundingBox(controller.scale).getHeight());
 
-                Task task = new Task<Void>() {
-                    @Override
-                    public Void call() throws Exception {
-                        while (true) {
-                            Platform.runLater(new Runnable() {
-                                @Override
-                                public void run() {
-                                    controller.redraw();
-                                }
-                            });
-                            Thread.sleep(100);
+                if (controller.task == null) {
+                    controller.task = new Task<Void>() {
+                        @Override
+                        public Void call() throws Exception {
+                            while (true) {
+                                Platform.runLater(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        controller.redraw();
+                                    }
+                                });
+                                Thread.sleep(100);
+                            }
                         }
-                    }
-                };
-                Thread th = new Thread(task);
+                    };
+                }
+                Thread th = new Thread(controller.task);
                 th.setDaemon(true);
                 th.start();
                 controller.fileLabel.setText(imagePath);

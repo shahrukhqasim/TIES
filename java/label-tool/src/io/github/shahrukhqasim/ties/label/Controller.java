@@ -1,5 +1,6 @@
 package io.github.shahrukhqasim.ties.label;
 
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Point2D;
 import javafx.geometry.Rectangle2D;
@@ -31,6 +32,7 @@ public class Controller {
     public Canvas canvas;
     double scale = 1;
     Timer updater;
+    Task task;
     public Label zoomLabel;
     public Label fileLabel;
     private IOManager ioManager;
