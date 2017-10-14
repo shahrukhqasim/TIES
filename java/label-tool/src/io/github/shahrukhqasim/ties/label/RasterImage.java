@@ -25,7 +25,8 @@ public class RasterImage implements Drawable {
         double height = visibleArea.getMaxY() - y;
 
 
-        graphics.drawImage(image, x / scale, y / scale, width / scale, height / scale, x, y, width, height);
+        for (int i=0;i<30;i++)
+            graphics.drawImage(image, x / scale, y / scale, width / scale, height / scale, x, y, width, height);
 
     }
 
