@@ -181,6 +181,7 @@ public class IOManager {
                     controller.connections = new Connections(new Vector<>());
 
                 controller.interactionManager = new InteractionManager(controller.boxesOcr, controller.boxesCells, controller.connections);
+                controller.interactionManager.onToggleConnect(controller.toggleButton.isSelected());
                 controller.selectionBox = controller.interactionManager.getSelectionBox();
                 controller.selectionConnection = controller.interactionManager.getSelectionConnection();
 
