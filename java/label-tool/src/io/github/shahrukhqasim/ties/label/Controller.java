@@ -44,6 +44,8 @@ public class Controller {
 
     void redraw() {
         synchronized (lock) {
+            long startTime = System.nanoTime();
+
             double vValue = scrollPane.getVvalue();
             double hValue = scrollPane.getHvalue();
 
@@ -67,6 +69,11 @@ public class Controller {
             selectionBox.draw(graphics2D, visibleRect, scale);
             selectionConnection.draw(graphics2D, visibleRect, scale);
             connections.draw(graphics2D, visibleRect, scale);
+
+            long endTime = System.nanoTime();
+            long duration = (endTime - startTime) / 1000000;
+            System.out.println("Drawing in " + duration + " milliseconds");
+
         }
     }
 
