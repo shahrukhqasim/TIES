@@ -5,8 +5,9 @@ import os
 import json
 import shutil
 
-show = False
+show = True
 show_ocr = False
+dont_output = True
 
 
 class UnlvConverter:
@@ -41,8 +42,9 @@ class UnlvConverter:
         table_json['table']['y2'] = y2
 
         sorted_path_full = self.sorted_path + "-%d" % increment
-        assert(not os.path.exists(sorted_path_full))
-        os.mkdir(sorted_path_full)
+        if not dont_output:
+            assert(not os.path.exists(sorted_path_full))
+            os.mkdir(sorted_path_full)
 
         image = np.copy(self.image)
         rows, cols, _ = np.shape(image)
@@ -65,13 +67,15 @@ class UnlvConverter:
             cells.append(cell)
         json_out = dict()
         json_out['cells'] = cells
-        with open(os.path.join(sorted_path_full, 'cells.json'), 'w') as f:
-            json.dump(json_out, f)
-        with open(os.path.join(sorted_path_full, 'ocr.json'), 'w') as f:
-            json.dump(self.words_json, f)
-        with open(os.path.join(sorted_path_full, 'table.json'), 'w') as f:
-            json.dump(table_json, f)
-        shutil.copy(self.png_path, os.path.join(sorted_path_full, 'image.png'))
+
+        if not dont_output:
+            with open(os.path.join(sorted_path_full, 'cells.json'), 'w') as f:
+                json.dump(json_out, f)
+            with open(os.path.join(sorted_path_full, 'ocr.json'), 'w') as f:
+                json.dump(self.words_json, f)
+            with open(os.path.join(sorted_path_full, 'table.json'), 'w') as f:
+                json.dump(table_json, f)
+            shutil.copy(self.png_path, os.path.join(sorted_path_full, 'image.png'))
 
         if show:
             image = cv2.resize(image, None, fx=0.25, fy=0.25)
