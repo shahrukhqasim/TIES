@@ -80,9 +80,9 @@ public class InteractionManager implements InteractionListener {
         }
         else if (button == MouseButton.SECONDARY) {
             // For Cell boxes
-            select(true, boxesCell.getBoxes(), scale, rectangle);
-            select(true, boxesOcr.getBoxes(), scale, new Rectangle2D(0,0,0,0));
-            selectConnections(true, connections.getConnections(), scale, new Rectangle2D(0,0,0,0));
+//            select(true, boxesCell.getBoxes(), scale, rectangle);
+//            select(true, boxesOcr.getBoxes(), scale, new Rectangle2D(0,0,0,0));
+//            selectConnections(true, connections.getConnections(), scale, new Rectangle2D(0,0,0,0));
         }
         else if (button == MouseButton.MIDDLE) {
             // For connections

@@ -168,7 +168,7 @@ public class IOManager {
     }
 
     void load() {
-        synchronized (controller.lock) {
+        if (controller.lock.tryLock()) {
             try {
                 if (controller.updater != null)
                     controller.updater.cancel();
@@ -202,6 +202,9 @@ public class IOManager {
             catch (Exception e) {
                 e.printStackTrace();
             }
+            finally {
+                controller.lock.unlock();
+            }
         }
         controller.onZoomOut();
         controller.onZoomOut();
@@ -212,23 +215,29 @@ public class IOManager {
 
     void open(boolean haveTo) {
         try {
-            synchronized (controller.lock) {
+             if (controller.lock.tryLock()) {
+                 try {
 //                FileChooser chooser = new FileChooser();
 //                chooser.setTitle("Open File");
-                File file = new File("/home/srq/Datasets/tables/unlv/sorted/samples.txt");//chooser.showOpenDialog(new Stage());
-                if (file == null) {
-                    throw new Exception("Error in opening file");
-                }
-                String listOfDirectories = Utils.readTextFile(file.getAbsolutePath());
-                this.listOfDirectories = listOfDirectories.split("\\r?\\n");
-                if (this.listOfDirectories.length == 0) {
-                    throw new Exception("Nothing in the file");
-                }
-                currentIndex = 0;
-                this.imagePath = this.listOfDirectories[0] + "/image.png";
-                this.cellsPath = this.listOfDirectories[0] + "/cells.json";
-                this.ocrPath = this.listOfDirectories[0] + "/ocr.json";
-                this.logicalCellsPath = this.listOfDirectories[0] + "/cells_logical.json";
+                     File file = new File("/home/srq/Datasets/tables/unlv/sorted/samples.txt");//chooser.showOpenDialog(new Stage());
+                     if (file == null) {
+                         throw new Exception("Error in opening file");
+                     }
+                     String listOfDirectories = Utils.readTextFile(file.getAbsolutePath());
+                     this.listOfDirectories = listOfDirectories.split("\\r?\\n");
+                     if (this.listOfDirectories.length == 0) {
+                         throw new Exception("Nothing in the file");
+                     }
+                     currentIndex = 0;
+                     this.imagePath = this.listOfDirectories[0] + "/image.png";
+                     this.cellsPath = this.listOfDirectories[0] + "/cells.json";
+                     this.ocrPath = this.listOfDirectories[0] + "/ocr.json";
+                     this.logicalCellsPath = this.listOfDirectories[0] + "/cells_logical.json";
+                 }
+                 finally {
+                     controller.lock.unlock();
+                 }
+
             }
             load();
 
