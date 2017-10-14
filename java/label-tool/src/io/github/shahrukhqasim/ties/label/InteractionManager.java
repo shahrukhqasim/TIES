@@ -193,9 +193,10 @@ public class InteractionManager implements InteractionListener {
                     union = Utils.union(union, box.getBoundingBox(scale));
                 }
             }
-
-            Box cellBox = new CellBox(union);
-            boxesCell.getBoxes().add(cellBox);
+            if (union != null) {
+                Box cellBox = new CellBox(union);
+                boxesCell.getBoxes().add(cellBox);
+            }
 
         }
     }
