@@ -3,9 +3,6 @@ package io.github.shahrukhqasim.ties.label;
 import javafx.embed.swing.SwingFXUtils;
 import javafx.geometry.Point2D;
 import javafx.geometry.Rectangle2D;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -181,7 +178,7 @@ public class IOManager {
                     controller.connections = new Connections(new Vector<>());
 
                 controller.interactionManager = new InteractionManager(controller.boxesOcr, controller.boxesCells, controller.connections);
-                controller.interactionManager.onToggleConnect(controller.toggleButton.isSelected());
+                controller.interactionManager.onToggleConnect(controller.toggleButtonConnect.isSelected());
                 controller.selectionBox = controller.interactionManager.getSelectionBox();
                 controller.selectionConnection = controller.interactionManager.getSelectionConnection();
 
@@ -264,10 +261,16 @@ public class IOManager {
     }
 
     void next() {
+        if (controller.toggleButtonAutoSave.isSelected())
+            save();
+
         toNewIndex(currentIndex + 1);
         load();
     }
     void previous() {
+        if (controller.toggleButtonAutoSave.isSelected())
+            save();
+
         toNewIndex(currentIndex - 1);
         load();
     }

@@ -7,12 +7,13 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 
 public class Main extends Application {
+    Controller controller;
 
     @Override
     public void start(Stage primaryStage) throws Exception{
         FXMLLoader loader = new FXMLLoader(getClass().getResource("ui_layout.fxml"));
         Parent root = loader.load();
-        Controller controller = loader.getController();
+        controller = loader.getController();
         primaryStage.setTitle("TIES - Label Tool");
         primaryStage.setScene(new Scene(root, 1024, 576));
         primaryStage.show();
@@ -21,6 +22,8 @@ public class Main extends Application {
 
     @Override
     public void stop() throws Exception {
+        controller.onSave();
+        
         super.stop();
         System.exit(0);
     }

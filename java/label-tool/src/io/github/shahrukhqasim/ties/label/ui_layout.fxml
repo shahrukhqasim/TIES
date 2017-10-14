@@ -17,7 +17,7 @@
             <Button text="Zoom In" onAction="#onZoomIn"></Button>
             <Button text="Zoom Out"  onAction="#onZoomOut"></Button>
             <Label text="Zoom: 1x" fx:id="zoomLabel"></Label>
-            <ToggleButton text="Connect" fx:id="toggleButton" onAction="#onToggleConnect"></ToggleButton>
+            <ToggleButton text="Connect" fx:id="toggleButtonConnect" onAction="#onToggleConnect"></ToggleButton>
             <Label text="File" fx:id="fileLabel"></Label>
         </FlowPane>
     </top>
@@ -36,6 +36,7 @@
             <Button text="Save" alignment="CENTER" onAction="#onSave"></Button>
             <Button text="Next" alignment="CENTER" onAction="#onNext"></Button>
             <Button text="Previous" alignment="CENTER" onAction="#onPrevious"></Button>
+            <ToggleButton text="AutoSave" alignment="CENTER" fx:id="toggleButtonAutoSave" selected="true"></ToggleButton>
         </FlowPane>
     </bottom>
 </BorderPane>

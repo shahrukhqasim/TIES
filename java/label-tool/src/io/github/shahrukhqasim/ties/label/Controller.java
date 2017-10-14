@@ -1,6 +1,5 @@
 package io.github.shahrukhqasim.ties.label;
 
-import javafx.embed.swing.SwingFXUtils;
 import javafx.fxml.FXML;
 import javafx.geometry.Point2D;
 import javafx.geometry.Rectangle2D;
@@ -9,17 +8,11 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 
-import javax.imageio.ImageIO;
-import java.awt.*;
-import java.io.File;
 import java.util.Timer;
-import java.util.TimerTask;
-import java.util.Vector;
 
 import javafx.scene.control.ToggleButton;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import org.json.*;
 
 public class Controller {
     Drawable image;
@@ -37,7 +30,8 @@ public class Controller {
     public Label zoomLabel;
     public Label fileLabel;
     private IOManager ioManager;
-    public ToggleButton toggleButton;
+    public ToggleButton toggleButtonConnect;
+    public ToggleButton toggleButtonAutoSave;
 
 
     public Controller() {
@@ -160,6 +154,6 @@ public class Controller {
 
     @FXML
     void onToggleConnect() {
-        this.interactionManager.onToggleConnect(toggleButton.isSelected());
+        this.interactionManager.onToggleConnect(toggleButtonConnect.isSelected());
     }
 }
