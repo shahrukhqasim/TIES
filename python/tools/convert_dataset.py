@@ -12,6 +12,7 @@ dont_output = True
 
 class UnlvConverter:
     image = None
+    table_segment = None
 
     def __init__(self, id, png_path, xml_path, ocr_path, sorted_path):
         self.id = id
@@ -23,7 +24,9 @@ class UnlvConverter:
 
     def execute(self):
         self.image = cv2.imread(self.png_path)
-        self.see_ocr()
+        height, width, _ = np.shape(self.image)
+        self.table_segment = np.zeros((height, width), dtype=np.uint8)
+        # self.see_ocr()
         self.see_doc()
 
     def see_table(self, table, increment):
@@ -41,50 +44,7 @@ class UnlvConverter:
         table_json['table']['x2'] = x2
         table_json['table']['y2'] = y2
 
-        sorted_path_full = self.sorted_path + "-%d" % increment
-        if not dont_output:
-            assert(not os.path.exists(sorted_path_full))
-            os.mkdir(sorted_path_full)
-
-        image = np.copy(self.image)
-        rows, cols, _ = np.shape(image)
-        rows, cols = rows * 1, cols* 1
-        cells_xml = table.findall('Cell')
-        cells = []
-        for cell_xml in cells_xml:
-            bounding_box = cell_xml.attrib
-            if bounding_box['dontCare'] == 'true':
-                continue
-            x1 = int(bounding_box['x0'])
-            y1 = int(bounding_box['y0'])
-            x2 = int(bounding_box['x1'])
-            y2 = int(bounding_box['y1'])
-            if show:
-                cv2.rectangle(image, (int(x1 / 1), int(y1 / 1)), (int(x2 / 1), int(y2 / 1)), (0,0,255), thickness=2)
-            cell = dict()
-            cell['x1'] = x1
-            cell['y1'] = y1
-            cell['x2'] = x2
-            cell['y2'] = y2
-            cells.append(cell)
-        json_out = dict()
-        json_out['cells'] = cells
-
-        if not dont_output:
-            with open(os.path.join(sorted_path_full, 'cells.json'), 'w') as f:
-                json.dump(json_out, f)
-            with open(os.path.join(sorted_path_full, 'ocr.json'), 'w') as f:
-                json.dump(self.words_json, f)
-            with open(os.path.join(sorted_path_full, 'table.json'), 'w') as f:
-                json.dump(table_json, f)
-            shutil.copy(self.png_path, os.path.join(sorted_path_full, 'image.png'))
-
-        if show:
-            image = cv2.resize(image, None, fx=0.25, fy=0.25)
-            cv2.namedWindow(self.png_path)
-            cv2.imshow(self.png_path, image)
-            cv2.waitKey(0)
-            cv2.destroyWindow(self.png_path)
+        cv2.rectangle(self.table_segment, (int(x1),int(y1)), (int(x2), int(y2)), 255, cv2.FILLED)
 
     def see_doc(self):
         tree = ET.parse(self.xml_path)
@@ -94,6 +54,11 @@ class UnlvConverter:
         for table in tables:
             self.see_table(table, i)
             i += 1
+
+        os.mkdir(self.sorted_path)
+        shutil.copy(self.png_path, os.path.join(self.sorted_path, 'image.png'))
+        cv2.imwrite(os.path.join(self.sorted_path, 'tables.png'), self.table_segment)
+
 
     def see_ocr(self):
         image = np.copy(self.image)
@@ -129,18 +94,12 @@ class UnlvConverter:
         json_out['words'] = words
         self.words_json = json_out
 
-        if show_ocr:
-            image = cv2.resize(image, None, fx=0.25, fy=0.25)
-            cv2.namedWindow('image')
-            cv2.imshow('image', image)
-            cv2.waitKey(0)
-
 
 
 gt_path = '/home/srq/Datasets/tables/unlv/unlv_xml_gt'
 images_path = '/home/srq/Datasets/tables/unlv'
 ocr_path = '/home/srq/Datasets/tables/unlv/unlv_xml_ocr'
-sorted_path = '/home/srq/Datasets/tables/unlv/sorted'
+sorted_path = '/home/srq/Datasets/tables/unlv-for-segment'
 
 for i in os.listdir(gt_path):
     if not i.endswith('.xml'):
