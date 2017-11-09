@@ -1,7 +1,7 @@
 import os
 import time
 import threading
-from silknet.LoadInterface import *
+from network.silknet.LoadInterface import *
 import numpy as np
 from random import randint
 
