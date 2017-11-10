@@ -27,14 +27,14 @@ class DataFeaturesDumper:
     def dump_doc(self, all_tokens, all_tokens_rects, image, file_name):
         N = len(all_tokens)
         height, width = np.shape(image)
-        class_one_hot = np.zeros((N, 2))
+        classes = np.zeros(N)
         rect_matrix = np.zeros((N, 4))
         embeddings_matrix = np.zeros((N, 300))
         for i in range(N):
             token_rect = all_tokens_rects[i]
             index = 0 if image[int(token_rect['y'] + token_rect['height'] / 2), int(
                 token_rect['x'] + token_rect['width'] / 2)] == 0 else 1
-            class_one_hot[i, index] = 1
+            classes[i] = index
             rect_matrix[i, 0] = token_rect['x'] / width
             rect_matrix[i, 1] = token_rect['y'] / height
             rect_matrix[i, 2] = token_rect['width'] / width
@@ -51,7 +51,7 @@ class DataFeaturesDumper:
         neighbor_distance_matrix[:, 1] = neighbor_distance_matrix[:, 1] / height
         neighbor_distance_matrix[:, 2] = neighbor_distance_matrix[:, 2] / width
         neighbor_distance_matrix[:, 3] = neighbor_distance_matrix[:, 3] / height
-        document = DocumentFeatures(embeddings_matrix, rect_matrix, neighbor_distance_matrix, neighbor_graph, class_one_hot)
+        document = DocumentFeatures(embeddings_matrix, rect_matrix, neighbor_distance_matrix, neighbor_graph, classes)
         with open(file_name, 'wb') as f:
             pickle.dump(document, f, pickle.HIGHEST_PROTOCOL)
 

@@ -12,7 +12,7 @@ from network.ModuleCollect import ModuleCollect
 class SimpleDocProcModel(torch.nn.Module):
     def __init__(self):
         super(SimpleDocProcModel, self).__init__()
-        self.k = 10
+        self.k = 8
         self.D_in = 300 + self.k
 
         self.A = ModuleA(self.D_in, 100)
@@ -26,27 +26,27 @@ class SimpleDocProcModel(torch.nn.Module):
     def set_iterations(self, iterations):
         self.iterations = iterations
 
-    def concat(self, x, indices, num_words):
-        y = Variable(torch.zeros(num_words, self.D_in * 5))
+    def concat(self, x, indices, indices_not_found, num_words):
+        y = Variable(torch.zeros(num_words, 100 * 5)).cuda()
+        y[:, 000:100] = x#[indices[:, 0]]
+        # y[:, 100:200] = x[indices[:, 1]]
+        # y[:, 200:300] = x[indices[:, 2]]
+        # y[:, 300:400] = x[indices[:, 3]]
+        # y[:, 400:500] = x[indices[:, 4]]
 
-        for i in range(num_words):
-            y[i, 0:self.D_in] = x[i]
-            y[i, self.D_in * 1:self.D_in * 2] = x[np.maximum(indices[i, 0], 0)] * int(indices[i, 0] != -1)
-            y[i, self.D_in * 2:self.D_in * 3] = x[np.maximum(indices[i, 1], 0)] * int(indices[i, 1] != -1)
-            y[i, self.D_in * 3:self.D_in * 4] = x[np.maximum(indices[i, 2], 0)] * int(indices[i, 2] != -1)
-            y[i, self.D_in * 4:self.D_in * 5] = x[np.maximum(indices[i, 3], 0)] * int(indices[i, 3] != -1)
+        # y[indices_not_found] = 0
 
         return y
 
-    def forward(self, indices, vv, num_words):
+    def forward(self, indices, indices_not_found, vv, num_words):
         uu = self.A.forward(vv)
-        hh = Variable(torch.zeros(num_words,100))
+        hh = Variable(torch.zeros(num_words,100)).cuda()
 
-        for i in range(self.iterations):
-            ww = self.concat(uu, indices)
-            bb = self.B.forward(ww, hh, num_words)
-            oo, hh = self.B2.forward(bb)
-            ll = self.C.forward(oo)
-            uu = self.D.forward(hh)
+        # for i in range(self.iterations):
+        #     # ww = self.concat(uu, indices, indices_not_found, num_words)
+        #     bb = self.B.forward(uu, hh)
+        #     oo, hh = self.B2.forward(bb)
+        #     ll = self.C.forward(oo)
+        #     uu = self.D.forward(hh)
 
         return ll

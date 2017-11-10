@@ -10,7 +10,7 @@ class ModuleCollect(torch.nn.Module):
         self.num_words = num_words
 
     def forward(self, x, indices):
-        y = Variable(torch.zeros(self.num_words, self.D_in * 5))
+        y = Variable(torch.zeros(self.num_words, self.D_in * 5)).cuda()
 
         for i in range(self.num_words):
             y[i, 0:self.D_in] = x[i]

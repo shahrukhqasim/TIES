@@ -4,10 +4,11 @@ from network.data_features_dumper import DataFeaturesDumper
 from network.silknet import LoadInterface
 from network.silknet.FolderDataReader import FolderDataReader
 from interface import implements
-import cv2
 import os
 import pickle
 from network.computation_graph import SimpleDocProcModel
+import torch
+from torch.autograd import Variable
 
 
 class DataLoader(implements(LoadInterface)):
@@ -24,6 +25,7 @@ class Trainer:
         self.train_path = config['quad']['train_data_path']
         self.test_path = config['quad']['test_data_path']
         self.glove_path = config['quad']['glove_path']
+        self.learning_rate = float(config['quad']['learning_rate'])
 
     def init(self, dump_features_again):
         if dump_features_again:
@@ -35,9 +37,44 @@ class Trainer:
         dataset = FolderDataReader(self.train_path, DataLoader())
         dataset.init()
         model = SimpleDocProcModel()
-        for i in range(300):
+        model.set_iterations(1)
+        criterion = torch.nn.CrossEntropyLoss(size_average=True)
+        optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
+        for i in range(10000):
             document, epoch, id = dataset.next_element()
-            num_words, _ = np.shape(document.tokens_rects)
-            for j in range(300):
-                vv = np.concatenate([document.rects, document.distances, document.embeddings], axis=1)
-                model.forward(document.tokens_neighbor_matrix, vv, num_words)
+            num_words, _ = np.shape(document.rects)
+            vv = np.concatenate([document.rects, document.distances, document.embeddings * 0], axis=1).astype(np.float32)
+            vv = Variable(torch.from_numpy(vv)).cuda()
+            y = Variable(torch.from_numpy(document.classes.astype(np.int64)), requires_grad=False).cuda()
+
+            baseline_accuracy_1 = 100 * np.sum(document.classes==0) / num_words
+            baseline_accuracy_2 = 100 * np.sum(document.classes==1) / num_words
+
+            indices = torch.LongTensor(torch.from_numpy(np.concatenate(
+                [np.expand_dims(np.arange(num_words, dtype=np.int64), axis=1),
+                 np.maximum(document.neighbor_graph.astype(np.int64), 0)], axis=1))).cuda()
+            indices_not_found = torch.ByteTensor(torch.from_numpy(np.repeat(np.concatenate(
+                [np.expand_dims(np.zeros(num_words, dtype=np.int64), axis=1),
+                 document.neighbor_graph.astype(np.int64)], axis=1) == -1, 100).reshape((-1, 500)).astype(
+                np.uint8))).cuda()
+            indices_not_found = indices_not_found*0
+
+            for j in range(1):
+                y_pred = model(indices, indices_not_found, vv, num_words)
+                _, predicted = torch.max(y_pred.data, 1)
+                accuracy = torch.sum(predicted == y.data)
+                accuracy = 100 * accuracy / num_words
+
+                tables_pred = torch.sum(predicted == 0)
+                tables_pred = 100 * tables_pred / num_words
+
+                non_tables_pred = torch.sum(predicted == 1)
+                non_tables_pred = 100 * non_tables_pred / num_words
+
+
+                loss = criterion(y_pred, y)
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                print("%3dx%3d Loss = %f" %  (i, j, loss.data[0]), "Accuracy: %03.2f" % accuracy, "Tables: %03.2f" % tables_pred, "Non-tables: %03.2f" % non_tables_pred, "Base 1: %03.2f" % baseline_accuracy_1,"Base 2: %03.2f" % baseline_accuracy_2, torch.sum(y_pred).data[0])

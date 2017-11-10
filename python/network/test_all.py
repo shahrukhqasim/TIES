@@ -18,10 +18,10 @@ class NetsTests(unittest.TestCase):
     def test_model_1(self):
         N = 500
         indices_test = (np.random.randint(0,N, (N,4))).astype(np.int32)
-        vv = Variable(torch.randn(N, 330))
+        vv = Variable(torch.randn(N, 308))
         model = SimpleDocProcModel()
         model.set_iterations(20)
-        ll = model.forward(indices_test, vv)
+        ll = model.forward(indices_test, vv, N)
 
 if __name__ == '__main__':
     unittest.main()
