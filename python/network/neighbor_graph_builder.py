@@ -39,23 +39,23 @@ class NeighborGraphBuilder:
                     new_distance = A['y'] - B['y']
                     new_distance_abs = abs(new_distance)
                     # B is above A
-                    if new_distance > 0 and new_distance < min_top:
-                        min_top = new_distance
+                    if new_distance > 0 and new_distance_abs < min_top:
+                        min_top = new_distance_abs
                         min_index_top = j
                     # B is below A
-                    elif new_distance < min_bottom:
-                        min_bottom = new_distance
+                    elif new_distance_abs < min_bottom:
+                        min_bottom = new_distance_abs
                         min_index_bottom = j
                 if self.vertical_overlap(A, B):
                     new_distance = A['x'] - B['x']
                     new_distance_abs = abs(new_distance)
                     # B is left of A
-                    if new_distance > 0 and new_distance < min_left:
-                        min_left = new_distance
+                    if new_distance > 0 and new_distance_abs < min_left:
+                        min_left = new_distance_abs
                         min_index_left = j
-                    # B is below A
-                    elif new_distance < min_right:
-                        min_right = new_distance
+                    # B is right of A
+                    elif new_distance_abs < min_right:
+                        min_right = new_distance_abs
                         min_index_right = j
             m[i,0] = min_index_left
             m[i,1] = min_index_top

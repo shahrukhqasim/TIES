@@ -84,9 +84,10 @@ class DataFeaturesDumper:
 
         ii = 0
         for i in os.listdir(self.path):
+            print("On", i)
             full_example_path = os.path.join(self.path, i)
 
-            image_path = os.path.join(full_example_path, 'image.png')
+            image_path = os.path.join(full_example_path, 'tables.png')
             json_path  = os.path.join(full_example_path, 'ocr_gt.json')
             document_dump_path  = os.path.join(full_example_path, '__dump__.pickle')
             image = cv2.imread(image_path, 0)
@@ -123,7 +124,11 @@ class DataFeaturesDumper:
 
             for i in range(len(all_tokens)):
                 token_rect = all_tokens_rects[i]
-                class_indices.append(0 if image[int(token_rect['y'] + token_rect['height']/2), int(token_rect['x'] + token_rect['width']/2)] == 0 else 1)
+                try:
+                    class_indices.append(0 if image[int(token_rect['y'] + token_rect['height']/2), int(token_rect['x'] + token_rect['width']/2)] == 0 else 1)
+                except:
+                    print(i, all_tokens[i], all_tokens_rects[i])
+                    pass
 
             self.dump_doc(all_tokens, all_tokens_rects, image, document_dump_path)
             ii += 1

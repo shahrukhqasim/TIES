@@ -22,6 +22,8 @@ class ModuleB2(torch.nn.Module):
         self.linear22 = torch.nn.Linear(100, 100).cuda()
         self.linear32 = torch.nn.Linear(100, D_out_2).cuda()
 
+        self.activation = torch.nn.Sigmoid()
+
     def forward(self, x):
         o1 = self.linear1(x).clamp(min=0)
         o2 = self.linear2(o1).clamp(min=0)
@@ -29,6 +31,6 @@ class ModuleB2(torch.nn.Module):
         o12 = self.linear12(x).clamp(min=0)
         o22 = self.linear22(o12).clamp(min=0)
 
-        return self.linear3(o2).tanh(), self.linear32(o22).tanh()
+        return self.activation(self.linear3(o2)), self.activation(self.linear32(o22))
 
         # return self.linear1(x).tanh(), self.linear12(x).tanh()

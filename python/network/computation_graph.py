@@ -28,25 +28,25 @@ class SimpleDocProcModel(torch.nn.Module):
 
     def concat(self, x, indices, indices_not_found, num_words):
         y = Variable(torch.zeros(num_words, 100 * 5)).cuda()
-        y[:, 000:100] = x#[indices[:, 0]]
-        # y[:, 100:200] = x[indices[:, 1]]
-        # y[:, 200:300] = x[indices[:, 2]]
-        # y[:, 300:400] = x[indices[:, 3]]
-        # y[:, 400:500] = x[indices[:, 4]]
-
-        # y[indices_not_found] = 0
+        y[:, 000:100] = x[indices[:, 0]]
+        y[:, 100:200] = x[indices[:, 1]]
+        y[:, 200:300] = x[indices[:, 2]]
+        y[:, 300:400] = x[indices[:, 3]]
+        y[:, 400:500] = x[indices[:, 4]]
+        y[indices_not_found] = 0
 
         return y
 
     def forward(self, indices, indices_not_found, vv, num_words):
+
         uu = self.A.forward(vv)
         hh = Variable(torch.zeros(num_words,100)).cuda()
 
-        # for i in range(self.iterations):
-        #     # ww = self.concat(uu, indices, indices_not_found, num_words)
-        #     bb = self.B.forward(uu, hh)
-        #     oo, hh = self.B2.forward(bb)
-        #     ll = self.C.forward(oo)
-        #     uu = self.D.forward(hh)
+        for i in range(self.iterations):
+            ww = self.concat(uu, indices, indices_not_found, num_words)
+            bb = self.B.forward(ww, hh)
+            oo, hh = self.B2.forward(bb)
+            ll = self.C.forward(oo)
+            uu = self.D.forward(hh)
 
         return ll

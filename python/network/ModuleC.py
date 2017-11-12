@@ -17,6 +17,6 @@ class ModuleC(torch.nn.Module):
     def forward(self, x):
         o1 = self.linear1(x).clamp(min=0)
         o2 = self.linear2(o1).clamp(min=0)
-        return self.linear3(o2)
+        return self.linear3(x)
 
         # return self.linear3(x)
