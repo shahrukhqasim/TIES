@@ -10,9 +10,9 @@ from network.glove_reader import GLoVe
 import pickle
 from network.table_data import TableData
 
-show = False
+show = True
 show_ocr = False
-dont_output = False
+dont_output = True
 
 images_path = '/home/srq/Datasets/tables/unlv'
 tables_gt_path = '/home/srq/Datasets/tables/unlv/unlv_xml_gt'
@@ -110,14 +110,15 @@ class UnlvConverter:
             # show_2 = ((data_image[:,:,1] * 100) % 256).astype(np.uint8)
             # show_3 = ((data_image[:,:,2] * 100) % 256).astype(np.uint8)
 
-            show_1 = cv2.resize(show_1, None, fx=0.25, fy=0.25)
-            cv2.imshow('rows', show_1)
-            # show_2 = cv2.resize(show_2, None, fx=0.25, fy=0.25)
-            # cv2.imshow('cols', show_2)
-            # show_3 = cv2.resize(show_3, None, fx=0.25, fy=0.25)
-            # cv2.imshow('cells', show_3)
-
-            cv2.waitKey(0)
+            # show_1 = cv2.resize(show_1, None, fx=0.25, fy=0.25)
+            # cv2.imshow('rows', show_1)
+            # # show_2 = cv2.resize(show_2, None, fx=0.25, fy=0.25)
+            # # cv2.imshow('cols', show_2)
+            # # show_3 = cv2.resize(show_3, None, fx=0.25, fy=0.25)
+            # # cv2.imshow('cells', show_3)
+            #
+            # cv2.waitKey(0)
+            pass
 
         all_tokens = []
         all_tokens_rects = []
@@ -158,8 +159,20 @@ class UnlvConverter:
                 if data_image[mid[1], mid[0], 2] == data_image[mid_2[1], mid_2[0], 2]:
                     cell_share_matrix[i, j] = 1
 
+
         self.dump_table(all_tokens, all_tokens_rects, M, D, row_share_matrix, col_share_matrix, cell_share_matrix, show_1, os.path.join(sorted_path_full, '__dump__.pickle'))
         cv2.imwrite(os.path.join(sorted_path_full, 'visual.png'), show_1)
+
+    def do_plot(self, document, id):
+        rects = document.rects
+        row_share = document.row_share
+        canvas = (np.ones((500,500, 3))*255).astype(np.uint8)
+        for i in range(len(rects)):
+            rect = rects[i]
+            color = (255, 0, 0) if document.row_share[0, i] == 0 else (0,0,255)
+            cv2.rectangle(canvas, (int(rect[0] * 500), int(rect[1]*500)), (int((rect[0]+rect[2]) * 500), int((rect[1]+rect[3])*500)), color)
+        cv2.imshow('test' + id, canvas)
+        cv2.waitKey(0)
 
     def dump_table(self, all_tokens, all_tokens_rects, neighbor_graph, neighbor_distance_matrix, share_row_matrix,
                    share_col_matrix, share_cell_matrix, image_visual, file_name):
@@ -180,8 +193,14 @@ class UnlvConverter:
             embeddings_matrix[i] = embedding
 
         document = TableData(embeddings_matrix, rect_matrix, neighbor_distance_matrix, neighbor_graph, share_row_matrix, share_col_matrix, share_cell_matrix)
-        with open(file_name, 'wb') as f:
-            pickle.dump(document, f, pickle.HIGHEST_PROTOCOL)
+
+        if show:
+            self.do_plot(document, file_name)
+
+
+        if not dont_output:
+            with open(file_name, 'wb') as f:
+                pickle.dump(document, f, pickle.HIGHEST_PROTOCOL)
 
     def see_doc(self):
         tree = ET.parse(self.xml_path)

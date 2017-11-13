@@ -94,8 +94,6 @@ class Trainer:
 
         print("Average validation accuracy = ", sum_of_accuracies / total)
 
-        temp = input()
-
     def train(self):
         dataset = FolderDataReader(self.train_path, DataLoader())
         validation_dataset = FolderDataReader(self.validation_data_path, DataLoader())
@@ -106,12 +104,12 @@ class Trainer:
         if not self.from_scratch:
             model.load_state_dict(torch.load(self.model_path))
 
+        class_weights = torch.from_numpy(np.array([10,100]).astype(np.float32)).cuda()
+
         model.set_iterations(1)
-        criterion = torch.nn.CrossEntropyLoss(size_average=True)
+        criterion = torch.nn.CrossEntropyLoss(weight=class_weights, size_average=True)
         optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
         iterations = 0
-
-        model_iteraitons = 1
 
         for i in range(1000000):
             # if i % 10000 == 0:
