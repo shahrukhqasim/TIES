@@ -26,6 +26,9 @@ class TableDetector:
         self.test_path = config['table_detect']['test_data_path']
         self.validation_data_path = config['table_detect']['validation_data_path']
         self.learning_rate = float(config['table_detect']['learning_rate'])
+        self.save_after = int(config['table_detect']['save_after'])
+        self.model_path = config['table_detect']['model_path']
+        self.from_scratch = int(config['table_detect']['from_scratch']) == 1
 
     def do_plot(self, document, id):
         rects = document.rects
@@ -69,12 +72,13 @@ class TableDetector:
     def do_validation(self, model, dataset):
 
         sum_of_accuracies = 0
+        last_epoch = dataset.get_next_epoch()
         total = 0
         while True:
             document, epoch, id = dataset.next_element()
             num_words, vv_positional, vv_embeddings, vv_convolutional, y, baseline_accuracy_1, baseline_accuracy_2, indices, indices_not_found = self.get_example_elements(document, id)
 
-            y_pred = model(indices, indices_not_found, vv, num_words)
+            y_pred = model(indices, indices_not_found, vv_embeddings, vv_positional, vv_convolutional, num_words)
             _, predicted = torch.max(y_pred.data, 1)
 
             accuracy = torch.sum(predicted == y.data)
@@ -85,27 +89,36 @@ class TableDetector:
             total += 1
             sum_of_accuracies += accuracy
 
-            if epoch == 1:
+            if epoch == last_epoch+1:
                 break
 
         print("Average validation accuracy = ", sum_of_accuracies / total)
+        input()
 
     def train(self):
         dataset = FolderDataReader(self.train_path, DataLoader())
-        # validation_dataset = FolderDataReader(self.validation_data_path, DataLoader())
+        validation_dataset = FolderDataReader(self.validation_data_path, DataLoader())
         dataset.init()
-        # validation_dataset.init()
+        validation_dataset.init()
         model = TableDetect(300,8,48).cuda()
-        model.set_iterations(2)
+        model.set_iterations(4)
         criterion = torch.nn.CrossEntropyLoss(size_average=True)
         optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
+
+        if not self.from_scratch:
+            model.load_state_dict(torch.load(self.model_path))
+
+
         for i in range(1000000):
-            # if i % 10000 == 0:
-            #     self.do_validation(model, validation_dataset)
+            if i % 1000 == 0:
+                self.do_validation(model, validation_dataset)
 
             document, epoch, id = dataset.next_element()
             num_words, vv_positional, vv_embeddings, vv_convolutional, y, baseline_accuracy_1, baseline_accuracy_2, indices, indices_not_found = self.get_example_elements(document, id)
 
+            if i % self.save_after == 0:
+                print("Saving model")
+                torch.save(model.state_dict(), self.model_path)
 
             for j in range(2):
                 y_pred = model(indices, indices_not_found, vv_embeddings, vv_positional, vv_convolutional, num_words)
@@ -125,7 +138,7 @@ class TableDetector:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                print("%3dx%3d Loss = %f" %  (i, j, loss.data[0]), "Accuracy: %03.2f" % accuracy, "Tables: %03.2f" % tables_pred, "Non-tables: %03.2f" % non_tables_pred, "Base 1: %03.2f" % baseline_accuracy_1,"Base 2: %03.2f" % baseline_accuracy_2, torch.sum(y_pred).data[0])
+                print("%3dx%3d Loss = %f %s" %  (i, j, loss.data[0], id), "Accuracy: %03.2f" % accuracy, "Tables: %03.2f" % tables_pred, "Non-tables: %03.2f" % non_tables_pred, "Base 1: %03.2f" % baseline_accuracy_1,"Base 2: %03.2f" % baseline_accuracy_2, torch.sum(y_pred).data[0])
 
 if __name__ == '__main__':
     trainer = TableDetector()

@@ -1,7 +1,8 @@
-import torch
 import numpy as np
+import torch
 from torch.autograd import Variable
-from table_detect.dense import Dense
+
+from network.dense import Dense
 
 input = Variable(torch.from_numpy(np.zeros((1000, 308)).astype(np.float32)))
 config = [300, 'S', 100, 'S', 100, 'T']

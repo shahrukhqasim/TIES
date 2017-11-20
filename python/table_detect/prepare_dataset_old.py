@@ -158,5 +158,5 @@ class PrepareDataset:
 
 if __name__ == '__main__':
     train = True
-    prepare = PrepareDataset('/home/srq/Datasets/tables/unlv-for-vis/train', '/media/srq/Seagate Expansion Drive/Models/GloVe/glove.840B.300d.txt', 'train')
+    prepare = PrepareDataset('/home/srq/Datasets/tables/unlv-for-vis/validate', '/media/srq/Seagate Expansion Drive/Models/GloVe/glove.840B.300d.txt', 'validate')
     prepare.load()

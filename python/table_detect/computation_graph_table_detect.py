@@ -1,8 +1,7 @@
-import numpy as np
 import torch
 from torch.autograd import Variable
-from network.ModuleCollect import ModuleCollect
-from table_detect.dense import Dense
+
+from network.dense import Dense
 
 
 class TableDetect(torch.nn.Module):
@@ -16,10 +15,10 @@ class TableDetect(torch.nn.Module):
         self.moduleA_project_down = Dense(300, config=[100, 'R'])
 
         self.moduleB = torch.nn.GRUCell(500, 100).cuda()
-        self.moduleBO_1 = Dense(100, config = [100, 'S', 100, 'S', 100, 'S'])
-        self.moduleBO_2 = Dense(100, config = [100, 'S', 100, 'S', 100, 'S'])
+        self.moduleBO_1 = Dense(100, config = [100, 'R', 100, 'R', 100, 'R'])
+        self.moduleBO_2 = Dense(100, config = [100, 'R', 100, 'R', 100, 'R'])
         self.moduleC = Dense(100, config = [100])
-        self.moduleD = Dense(100, config = [100, 'S'])
+        self.moduleD = Dense(100, config = [100, 'R'])
 
         self.iterations = 1
 

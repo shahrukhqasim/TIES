@@ -9,6 +9,8 @@ from network.neighbor_graph_builder import NeighborGraphBuilder
 from network.glove_reader import GLoVe
 import pickle
 from network.table_data import TableData
+from conv_autoencoder.convolutional_autoencoder import ConvolutionalAutoencoder
+from table_detect.table_detect_document_2 import TableDetectDocument
 
 show = False
 show_ocr = False
@@ -30,255 +32,27 @@ glove_path = '/media/srq/Seagate Expansion Drive/Models/GloVe/glove.840B.300d.tx
 cache_name = 'unlv_complete'
 
 
-class UnlvConverter:
+class PrepareDataset:
     image = None
 
-    def __init__(self, id, png_path, xml_path, ocr_path, sorted_path):
+    def __init__(self, id, png_path, xml_path, ocr_path, sorted_path, glove_reader):
         self.id = id
         self.png_path = png_path
         self.xml_path = xml_path
         self.ocr_path = ocr_path
         self.sorted_path = sorted_path
         self.words_json = None
+        self.glove_reader = glove_reader
 
     def execute(self):
         self.image = cv2.imread(self.png_path, 1)
         self.rows, self.cols, _ = np.shape(self.image)
+        self.image_tables = np.zeros((self.rows, self.cols), dtype=np.int32)
+        self.conv_model = ConvolutionalAutoencoder()
+        self.conv_model.prepare_for_manual_testing()
         self.see_ocr()
         self.see_doc()
-
-    def see_table(self, table, increment):
-        print("Converting doc", self.png_path)
-
-        table_attributes = table.attrib
-        tx1 = int(table_attributes['x0'])
-        ty1 = int(table_attributes['y0'])
-        tx2 = int(table_attributes['x1'])
-        ty2 = int(table_attributes['y1'])
-
-        sorted_path_full = self.sorted_path + "-%d" % increment
-        if not dont_output:
-            if not os.path.exists(sorted_path_full):
-                os.mkdir(sorted_path_full)
-
-        data_image = np.zeros((self.rows, self.cols, 3), dtype=np.int32)
-
-        rows_xml = table.findall('Row')
-        rows_matrix = np.zeros((len(rows_xml), 4))
-        rr = 0
-        last_y = ty1
-        for row in rows_xml:
-            row_attrib = row.attrib
-            x1 = rows_matrix[rr, 0] = int(row_attrib['x0'])
-            y1 = rows_matrix[rr, 1] = int(row_attrib['y0'])
-            x2 = rows_matrix[rr, 2] = int(row_attrib['x1'])
-            y2 = rows_matrix[rr, 3] = int(row_attrib['y1'])
-            rr += 1
-            data_image[last_y: y1 + 1, x1:x2 + 1, 0] = rr
-            last_y = y1 + 1
-        data_image[last_y: ty2, tx1:tx2 + 1, 0] = rr
-
-        columns_xml = table.findall('Column')
-        cols_matrix = np.zeros((len(columns_xml), 4))
-        cc = 0
-        last_x = tx1
-        for col in columns_xml:
-            col_attrib = col.attrib
-            x1 = cols_matrix[cc, 0] = int(col_attrib['x0'])
-            y1 = cols_matrix[cc, 1] = int(col_attrib['y0'])
-            x2 = cols_matrix[cc, 2] = int(col_attrib['x1'])
-            y2 = cols_matrix[cc, 3] = int(col_attrib['y1'])
-            cc += 1
-            data_image[y1:y2 + 1, last_x:x1 + 1, 1] = cc
-            last_x = x1 + 1
-        data_image[ty1:ty2, last_x:tx2, 1] = cc
-
-        cells_xml = table.findall('Cell')
-        ll = 0
-        for cell_xml in cells_xml:
-            bounding_box = cell_xml.attrib
-            if bounding_box['dontCare'] == 'true':
-                continue
-            x1 = int(bounding_box['x0'])
-            y1 = int(bounding_box['y0'])
-            x2 = int(bounding_box['x1'])
-            y2 = int(bounding_box['y1'])
-            ll += 1
-            data_image[y1:y2 + 1, x1:x2 + 1, 2] = ll
-        show_1 = ((data_image[:, :] * 100) % 256).astype(np.uint8)
-        if show:
-            # show_2 = ((data_image[:,:,1] * 100) % 256).astype(np.uint8)
-            # show_3 = ((data_image[:,:,2] * 100) % 256).astype(np.uint8)
-
-            # show_1 = cv2.resize(show_1, None, fx=0.25, fy=0.25)
-            # cv2.imshow('rows', show_1)
-            # # show_2 = cv2.resize(show_2, None, fx=0.25, fy=0.25)
-            # # cv2.imshow('cols', show_2)
-            # # show_3 = cv2.resize(show_3, None, fx=0.25, fy=0.25)
-            # # cv2.imshow('cells', show_3)
-            #
-            # cv2.waitKey(0)
-            pass
-
-        all_tokens = []
-        all_tokens_rects = []
-        for i in range(len(self.all_tokens)):
-            token = self.all_tokens[i]
-            token_rect = self.all_tokens_rects[i]
-            mid = [int(token_rect['x'] + token_rect['width'] / 2), int(token_rect['y'] + token_rect['height'] / 2)]
-            if data_image[mid[1], mid[0], 0] == 0:
-                continue
-            all_tokens.append(token)
-            all_tokens_rects.append(token_rect)
-
-        N = len(all_tokens)
-
-        row_share_matrix = np.zeros((N, N))
-        col_share_matrix = np.zeros((N, N))
-        cell_share_matrix = np.zeros((N, N))
-
-        neighbors_same_row = np.zeros((N,4))
-        neighbors_same_col = np.zeros((N,4))
-        neighbors_same_cell = np.zeros((N,4))
-
-        graph_builder = NeighborGraphBuilder(all_tokens_rects, data_image[:,:,0])
-        M, D = graph_builder.get_neighbor_matrix()
-
-        for i in range(N):
-            left_index = int(M[i,0])
-            top_index = int(M[i,1])
-            right_index = int(M[i,2])
-            bottom_index = int(M[i,3])
-
-            token_rect = all_tokens_rects[i]
-            mid = [int(token_rect['x'] + token_rect['width'] / 2), int(token_rect['y'] + token_rect['height'] / 2)]
-
-            if left_index != -1:
-                token_rect_2 = all_tokens_rects[left_index]
-                mid_2 = [int(token_rect_2['x'] + token_rect_2['width'] / 2),
-                         int(token_rect_2['y'] + token_rect_2['height'] / 2)]
-                # They share row
-                if data_image[mid[1], mid[0], 0] == data_image[mid_2[1], mid_2[0], 0]:
-                    neighbors_same_row[i, 0] = 1
-                # They share column
-                if data_image[mid[1], mid[0], 1] == data_image[mid_2[1], mid_2[0], 1]:
-                    neighbors_same_col[i, 0] = 1
-                # They share cell
-                if data_image[mid[1], mid[0], 2] == data_image[mid_2[1], mid_2[0], 2]:
-                    neighbors_same_cell[i, 0] = 1
-
-            if top_index != -1:
-                token_rect_2 = all_tokens_rects[top_index]
-                mid_2 = [int(token_rect_2['x'] + token_rect_2['width'] / 2),
-                         int(token_rect_2['y'] + token_rect_2['height'] / 2)]
-                # They share row
-                if data_image[mid[1], mid[0], 0] == data_image[mid_2[1], mid_2[0], 0]:
-                    neighbors_same_row[i, 1] = 1
-                # They share column
-                if data_image[mid[1], mid[0], 1] == data_image[mid_2[1], mid_2[0], 1]:
-                    neighbors_same_col[i, 1] = 1
-                # They share cell
-                if data_image[mid[1], mid[0], 2] == data_image[mid_2[1], mid_2[0], 2]:
-                    neighbors_same_cell[i, 1] = 1
-
-            if right_index != -1:
-                token_rect_2 = all_tokens_rects[right_index]
-                mid_2 = [int(token_rect_2['x'] + token_rect_2['width'] / 2),
-                         int(token_rect_2['y'] + token_rect_2['height'] / 2)]
-                # They share row
-                if data_image[mid[1], mid[0], 0] == data_image[mid_2[1], mid_2[0], 0]:
-                    neighbors_same_row[i, 2] = 1
-                # They share column
-                if data_image[mid[1], mid[0], 1] == data_image[mid_2[1], mid_2[0], 1]:
-                    neighbors_same_col[i, 2] = 1
-                # They share cell
-                if data_image[mid[1], mid[0], 2] == data_image[mid_2[1], mid_2[0], 2]:
-                    neighbors_same_cell[i, 2] = 1
-
-            if bottom_index != -1:
-                token_rect_2 = all_tokens_rects[bottom_index]
-                mid_2 = [int(token_rect_2['x'] + token_rect_2['width'] / 2),
-                         int(token_rect_2['y'] + token_rect_2['height'] / 2)]
-                # They share row
-                if data_image[mid[1], mid[0], 0] == data_image[mid_2[1], mid_2[0], 0]:
-                    neighbors_same_row[i, 3] = 1
-                # They share column
-                if data_image[mid[1], mid[0], 1] == data_image[mid_2[1], mid_2[0], 1]:
-                    neighbors_same_col[i, 3] = 1
-                # They share cell
-                if data_image[mid[1], mid[0], 2] == data_image[mid_2[1], mid_2[0], 2]:
-                    neighbors_same_cell[i, 3] = 1
-
-        for i in range(N):
-            token = all_tokens[i]
-            token_rect = all_tokens_rects[i]
-            mid = [int(token_rect['x'] + token_rect['width'] / 2), int(token_rect['y'] + token_rect['height'] / 2)]
-            for j in range(N):
-                token_2 = all_tokens[j]
-                token_rect_2 = all_tokens_rects[j]
-                mid_2 = [int(token_rect_2['x'] + token_rect_2['width'] / 2),
-                         int(token_rect_2['y'] + token_rect_2['height'] / 2)]
-                # They share row
-                if data_image[mid[1], mid[0], 0] == data_image[mid_2[1], mid_2[0], 0]:
-                    row_share_matrix[i, j] = 1
-                # They share column
-                if data_image[mid[1], mid[0], 1] == data_image[mid_2[1], mid_2[0], 1]:
-                    col_share_matrix[i, j] = 1
-                # They share cell
-                if data_image[mid[1], mid[0], 2] == data_image[mid_2[1], mid_2[0], 2]:
-                    cell_share_matrix[i, j] = 1
-
-
-        self.dump_table(all_tokens, all_tokens_rects, M, D, row_share_matrix, col_share_matrix, cell_share_matrix, neighbors_same_row, neighbors_same_col, neighbors_same_cell, show_1, os.path.join(sorted_path_full, '__dump__.pickle'))
-        cv2.imwrite(os.path.join(sorted_path_full, 'visual.png'), show_1)
-
-    def do_plot(self, document, id):
-        rects = document.rects
-        row_share = document.row_share
-        canvas = (np.ones((500,500, 3))*255).astype(np.uint8)
-        for i in range(len(rects)):
-            rect = rects[i]
-            color = (255, 0, 0) if document.row_share[0, i] == 0 else (0,0,255)
-            cv2.rectangle(canvas, (int(rect[0] * 500), int(rect[1]*500)), (int((rect[0]+rect[2]) * 500), int((rect[1]+rect[3])*500)), color)
-        cv2.imshow('test' + id, canvas)
-        cv2.waitKey(0)
-
-    def dump_table(self, all_tokens, all_tokens_rects, neighbor_graph, neighbor_distance_matrix, share_row_matrix,
-                   share_col_matrix, share_cell_matrix, neighbors_same_row, neighbors_same_col, neighbors_same_cell, image_visual, file_name):
-        N = len(all_tokens)
-        height, width, _ = np.shape(image_visual)
-        classes = np.zeros(N)
-        rect_matrix = np.zeros((N, 4))
-        embeddings_matrix = np.zeros((N, 300))
-        for i in range(N):
-            token_rect = all_tokens_rects[i]
-            rect_matrix[i, 0] = token_rect['x'] / width
-            rect_matrix[i, 1] = token_rect['y'] / height
-            rect_matrix[i, 2] = token_rect['width'] / width
-            rect_matrix[i, 3] = token_rect['height'] / height
-            embedding = glove_reader.get_vector(all_tokens[i])
-            if embedding is None:
-                embedding = np.ones((300)) * (-1)
-            embeddings_matrix[i] = embedding
-
-        document = TableData(embeddings_matrix, rect_matrix, neighbor_distance_matrix, neighbor_graph, share_row_matrix, share_col_matrix, share_cell_matrix, neighbors_same_row, neighbors_same_col, neighbors_same_cell)
-
-        if show:
-            self.do_plot(document, file_name)
-
-
-        if not dont_output:
-            with open(file_name, 'wb') as f:
-                pickle.dump(document, f, pickle.HIGHEST_PROTOCOL)
-
-    def see_doc(self):
-        tree = ET.parse(self.xml_path)
-        root = tree.getroot()
-        tables = root.find('Tables')
-        i = 0
-        for table in tables:
-            self.see_table(table, i)
-            i += 1
+        self.see_tokens()
 
     def see_ocr(self):
         image = np.copy(self.image)
@@ -287,7 +61,6 @@ class UnlvConverter:
         tree = ET.parse(self.ocr_path)
         root = tree.getroot()
         words_xml = root.find('words')
-        words = []
         self.all_tokens_rects = []
         self.all_tokens = []
         for word_xml in words_xml:
@@ -309,6 +82,130 @@ class UnlvConverter:
                 token_rect['x'] += int(j * divided_width)
                 token_rect['width'] = int(divided_width)
                 self.all_tokens_rects.append(token_rect)
+
+    def see_doc(self):
+        tree = ET.parse(self.xml_path)
+        root = tree.getroot()
+        tables = root.find('Tables')
+        i = 1
+        for table in tables:
+            self.see_table(table, i)
+            i += 1
+
+    def see_table(self, table, increment):
+        table_attributes = table.attrib
+        tx1 = int(table_attributes['x0'])
+        ty1 = int(table_attributes['y0'])
+        tx2 = int(table_attributes['x1'])
+        ty2 = int(table_attributes['y1'])
+
+        self.image_tables[ty1:ty2 + 1, tx1:tx2 + 1] = increment
+
+    def see_tokens(self):
+        class_indices = []
+        for i in range(len(self.all_tokens)):
+            token = self.all_tokens[i]
+            token_rect = self.all_tokens_rects[i]
+        for i in range(len(self.all_tokens)):
+            token_rect = self.all_tokens_rects[i]
+            try:
+                class_indices.append(0 if self.image_tables[int(token_rect['y'] + token_rect['height'] / 2), int(
+                    token_rect['x'] + token_rect['width'] / 2)] == 0 else 1)
+            except:
+                print(i, self.all_tokens[i], self.all_tokens_rects[i])
+                pass
+        document_dump_path = os.path.join(self.sorted_path, '__dump__.pickle')
+        spatial_features = self.conv_model.get_feature_map(self.image).astype(np.float64)
+        self.dump_doc(self.all_tokens, self.all_tokens_rects, spatial_features, document_dump_path)
+
+    def dump_doc(self, all_tokens, all_tokens_rects, spatial_features, file_name):
+        N = len(all_tokens)
+        height, width, _ = np.shape(self.image)
+        classes = np.zeros(N)
+        inside_same_table = np.zeros((N, 4))
+        rect_matrix = np.zeros((N, 4))
+        embeddings_matrix = np.zeros((N, 300))
+
+        features_spatial_height, features_spatial_width, depth = np.shape(spatial_features)
+
+        conv_features = np.zeros((N, depth))
+
+        graph_builder = NeighborGraphBuilder(all_tokens_rects, self.image_tables)
+
+        if not dont_output:
+            if not os.path.exists(self.sorted_path):
+                os.mkdir(self.sorted_path)
+
+        neighbor_graph, neighbor_distance_matrix = graph_builder.get_neighbor_matrix()
+        neighbor_distance_matrix[:, 0] = neighbor_distance_matrix[:, 0] / width
+        neighbor_distance_matrix[:, 1] = neighbor_distance_matrix[:, 1] / height
+        neighbor_distance_matrix[:, 2] = neighbor_distance_matrix[:, 2] / width
+        neighbor_distance_matrix[:, 3] = neighbor_distance_matrix[:, 3] / height
+        draw_image = np.copy(self.image)
+
+        for i in range(N):
+            token_rect = all_tokens_rects[i]
+            index = self.image_tables[int(token_rect['y'] + token_rect['height'] / 2), int(
+                token_rect['x'] + token_rect['width'] / 2)]
+
+            left_rect = all_tokens_rects[int(neighbor_graph[i, 0])]
+            right_rect = all_tokens_rects[int(neighbor_graph[i, 1])]
+            top_rect = all_tokens_rects[int(neighbor_graph[i, 2])]
+            bottom_rect = all_tokens_rects[int(neighbor_graph[i, 3])]
+
+            if index == 0:
+                index_left = index_right = index_top = index_bottom = 0
+            else:
+                index_left = 0 if self.image_tables[int(left_rect['y'] + left_rect['height'] / 2), int(
+                    left_rect['x'] + left_rect['width'] / 2)] == index or int(neighbor_graph[i, 0]) == -1 else 1
+                index_top = 0 if self.image_tables[int(top_rect['y'] + top_rect['height'] / 2), int(
+                    top_rect['x'] + top_rect['width'] / 2)] == index or int(neighbor_graph[i, 1]) == -1 else 1
+                index_right = 0 if self.image_tables[int(right_rect['y'] + right_rect['height'] / 2), int(
+                    right_rect['x'] + right_rect['width'] / 2)] == index or int(neighbor_graph[i, 2]) == -1 else 1
+                index_bottom = 0 if self.image_tables[int(bottom_rect['y'] + bottom_rect['height'] / 2), int(
+                    bottom_rect['x'] + bottom_rect['width'] / 2)] == index or int(neighbor_graph[i, 3]) == -1 else 1
+
+            inside_same_table[i, 0] = index_left
+            inside_same_table[i, 1] = index_top
+            inside_same_table[i, 2] = index_right
+            inside_same_table[i, 3] = index_bottom
+
+            color = (0, 0, 255) if index == 0 else (255, 0, 0)
+            if index_left != 0 or index_top != 0 or index_right != 0 or index_bottom != 0:
+                color = (0, 255, 0)
+            cv2.rectangle(draw_image, (int(token_rect['x']), int(
+                token_rect['y'])), (int(token_rect['x'] + token_rect['width']), int(
+                token_rect['y'] + token_rect['height'])), color, 3)
+        draw_path = os.path.join(self.sorted_path, 'visual.png')
+        print(draw_path)
+        cv2.imwrite(draw_path, draw_image)
+
+        for i in range(N):
+            token_rect = all_tokens_rects[i]
+            index = 0 if self.image_tables[int(token_rect['y'] + token_rect['height'] / 2), int(
+                token_rect['x'] + token_rect['width'] / 2)] == 0 else 1
+            classes[i] = index
+            rect_matrix[i, 0] = token_rect['x'] / width
+            rect_matrix[i, 1] = token_rect['y'] / height
+            rect_matrix[i, 2] = token_rect['width'] / width
+            rect_matrix[i, 3] = token_rect['height'] / height
+
+            feat_x = int((rect_matrix[i, 0] + rect_matrix[i, 2] / 2) * features_spatial_width)
+            feat_y = int((rect_matrix[i, 1] + rect_matrix[i, 3] / 2) * features_spatial_height)
+
+            assert feat_x < features_spatial_width and feat_y < features_spatial_height
+
+            conv_features[i] = spatial_features[feat_y, feat_x]
+
+            embedding = self.glove_reader.get_vector(all_tokens[i])
+            if embedding is None:
+                embedding = np.ones((300)) * (-1)
+            embeddings_matrix[i] = embedding
+
+        document = TableDetectDocument(embeddings_matrix, rect_matrix, neighbor_distance_matrix, neighbor_graph,
+                                       classes, conv_features, inside_same_table)
+        with open(file_name, 'wb') as f:
+            pickle.dump(document, f, pickle.HIGHEST_PROTOCOL)
 
 
 def pick_up_words(json_path, image_path):
@@ -373,7 +270,6 @@ all_tokens = set()
 glove_reader = GLoVe(glove_path, all_tokens)
 glove_reader.load(cache_name)
 
-
 for i in os.listdir(images_path):
     if not i.endswith('.png'):
         continue
@@ -390,4 +286,4 @@ for i in os.listdir(images_path):
         sorted_path = test_out
     sorted_path_full = os.path.join(sorted_path, i)
 
-    UnlvConverter(id, png_path_full, xml_path_full, ocr_path_full, sorted_path_full).execute()
+    PrepareDataset(id, png_path_full, xml_path_full, ocr_path_full, sorted_path_full, glove_reader).execute()
