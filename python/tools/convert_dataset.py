@@ -44,13 +44,13 @@ class UnlvConverter:
         table_json['table']['x2'] = x2
         table_json['table']['y2'] = y2
 
-        cv2.rectangle(self.table_segment, (int(x1),int(y1)), (int(x2), int(y2)), 255, cv2.FILLED)
+        cv2.rectangle(self.table_segment, (int(x1),int(y1)), (int(x2), int(y2)), increment, cv2.FILLED)
 
     def see_doc(self):
         tree = ET.parse(self.xml_path)
         root = tree.getroot()
         tables = root.find('Tables')
-        i = 0
+        i = 1
         for table in tables:
             self.see_table(table, i)
             i += 1

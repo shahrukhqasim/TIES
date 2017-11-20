@@ -10,9 +10,9 @@ from network.glove_reader import GLoVe
 import pickle
 from network.table_data import TableData
 
-show = True
+show = False
 show_ocr = False
-dont_output = True
+dont_output = False
 
 images_path = '/home/srq/Datasets/tables/unlv'
 tables_gt_path = '/home/srq/Datasets/tables/unlv/unlv_xml_gt'
@@ -137,8 +137,77 @@ class UnlvConverter:
         col_share_matrix = np.zeros((N, N))
         cell_share_matrix = np.zeros((N, N))
 
+        neighbors_same_row = np.zeros((N,4))
+        neighbors_same_col = np.zeros((N,4))
+        neighbors_same_cell = np.zeros((N,4))
+
         graph_builder = NeighborGraphBuilder(all_tokens_rects, data_image[:,:,0])
         M, D = graph_builder.get_neighbor_matrix()
+
+        for i in range(N):
+            left_index = int(M[i,0])
+            top_index = int(M[i,1])
+            right_index = int(M[i,2])
+            bottom_index = int(M[i,3])
+
+            token_rect = all_tokens_rects[i]
+            mid = [int(token_rect['x'] + token_rect['width'] / 2), int(token_rect['y'] + token_rect['height'] / 2)]
+
+            if left_index != -1:
+                token_rect_2 = all_tokens_rects[left_index]
+                mid_2 = [int(token_rect_2['x'] + token_rect_2['width'] / 2),
+                         int(token_rect_2['y'] + token_rect_2['height'] / 2)]
+                # They share row
+                if data_image[mid[1], mid[0], 0] == data_image[mid_2[1], mid_2[0], 0]:
+                    neighbors_same_row[i, 0] = 1
+                # They share column
+                if data_image[mid[1], mid[0], 1] == data_image[mid_2[1], mid_2[0], 1]:
+                    neighbors_same_col[i, 0] = 1
+                # They share cell
+                if data_image[mid[1], mid[0], 2] == data_image[mid_2[1], mid_2[0], 2]:
+                    neighbors_same_cell[i, 0] = 1
+
+            if top_index != -1:
+                token_rect_2 = all_tokens_rects[top_index]
+                mid_2 = [int(token_rect_2['x'] + token_rect_2['width'] / 2),
+                         int(token_rect_2['y'] + token_rect_2['height'] / 2)]
+                # They share row
+                if data_image[mid[1], mid[0], 0] == data_image[mid_2[1], mid_2[0], 0]:
+                    neighbors_same_row[i, 1] = 1
+                # They share column
+                if data_image[mid[1], mid[0], 1] == data_image[mid_2[1], mid_2[0], 1]:
+                    neighbors_same_col[i, 1] = 1
+                # They share cell
+                if data_image[mid[1], mid[0], 2] == data_image[mid_2[1], mid_2[0], 2]:
+                    neighbors_same_cell[i, 1] = 1
+
+            if right_index != -1:
+                token_rect_2 = all_tokens_rects[right_index]
+                mid_2 = [int(token_rect_2['x'] + token_rect_2['width'] / 2),
+                         int(token_rect_2['y'] + token_rect_2['height'] / 2)]
+                # They share row
+                if data_image[mid[1], mid[0], 0] == data_image[mid_2[1], mid_2[0], 0]:
+                    neighbors_same_row[i, 2] = 1
+                # They share column
+                if data_image[mid[1], mid[0], 1] == data_image[mid_2[1], mid_2[0], 1]:
+                    neighbors_same_col[i, 2] = 1
+                # They share cell
+                if data_image[mid[1], mid[0], 2] == data_image[mid_2[1], mid_2[0], 2]:
+                    neighbors_same_cell[i, 2] = 1
+
+            if bottom_index != -1:
+                token_rect_2 = all_tokens_rects[bottom_index]
+                mid_2 = [int(token_rect_2['x'] + token_rect_2['width'] / 2),
+                         int(token_rect_2['y'] + token_rect_2['height'] / 2)]
+                # They share row
+                if data_image[mid[1], mid[0], 0] == data_image[mid_2[1], mid_2[0], 0]:
+                    neighbors_same_row[i, 3] = 1
+                # They share column
+                if data_image[mid[1], mid[0], 1] == data_image[mid_2[1], mid_2[0], 1]:
+                    neighbors_same_col[i, 3] = 1
+                # They share cell
+                if data_image[mid[1], mid[0], 2] == data_image[mid_2[1], mid_2[0], 2]:
+                    neighbors_same_cell[i, 3] = 1
 
         for i in range(N):
             token = all_tokens[i]
@@ -160,7 +229,7 @@ class UnlvConverter:
                     cell_share_matrix[i, j] = 1
 
 
-        self.dump_table(all_tokens, all_tokens_rects, M, D, row_share_matrix, col_share_matrix, cell_share_matrix, show_1, os.path.join(sorted_path_full, '__dump__.pickle'))
+        self.dump_table(all_tokens, all_tokens_rects, M, D, row_share_matrix, col_share_matrix, cell_share_matrix, neighbors_same_row, neighbors_same_col, neighbors_same_cell, show_1, os.path.join(sorted_path_full, '__dump__.pickle'))
         cv2.imwrite(os.path.join(sorted_path_full, 'visual.png'), show_1)
 
     def do_plot(self, document, id):
@@ -175,7 +244,7 @@ class UnlvConverter:
         cv2.waitKey(0)
 
     def dump_table(self, all_tokens, all_tokens_rects, neighbor_graph, neighbor_distance_matrix, share_row_matrix,
-                   share_col_matrix, share_cell_matrix, image_visual, file_name):
+                   share_col_matrix, share_cell_matrix, neighbors_same_row, neighbors_same_col, neighbors_same_cell, image_visual, file_name):
         N = len(all_tokens)
         height, width, _ = np.shape(image_visual)
         classes = np.zeros(N)
@@ -192,7 +261,7 @@ class UnlvConverter:
                 embedding = np.ones((300)) * (-1)
             embeddings_matrix[i] = embedding
 
-        document = TableData(embeddings_matrix, rect_matrix, neighbor_distance_matrix, neighbor_graph, share_row_matrix, share_col_matrix, share_cell_matrix)
+        document = TableData(embeddings_matrix, rect_matrix, neighbor_distance_matrix, neighbor_graph, share_row_matrix, share_col_matrix, share_cell_matrix, neighbors_same_row, neighbors_same_col, neighbors_same_cell)
 
         if show:
             self.do_plot(document, file_name)
