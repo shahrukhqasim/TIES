@@ -14,6 +14,7 @@ class ModuleA(torch.nn.Module):
         self.linear2 = torch.nn.Linear(200, 100).cuda()
         self.linear3 = torch.nn.Linear(100, D_out).cuda()
 
+        # For empirical reasons, this better
         self.linear1.weight.data.uniform_(-30, 30)
         self.linear1.bias.data.uniform_(0, 0)
         self.linear2.weight.data.uniform_(-30, 30)

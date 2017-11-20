@@ -6,4 +6,3 @@ class DocumentFeatures:
         self.distances = neighbor_distance_matrix
         self.neighbor_graph = tokens_neighbor_matrix
         self.classes = tokens_classes
-

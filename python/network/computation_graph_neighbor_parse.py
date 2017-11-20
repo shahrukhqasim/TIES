@@ -3,25 +3,21 @@ import torch
 from torch.autograd import Variable
 from network.ModuleA import ModuleA
 from network.ModuleB import ModuleB
-from network.ModuleB22 import ModuleB2
+from network.ModuleB2 import ModuleB2
 from network.ModuleC import ModuleC
 from network.ModuleD import ModuleD
-from network.ModuleCollect import ModuleCollect
-from network.ModuleAssociate2 import ModuleAssociate2
 
 
-class ComputationGraphTableParse(torch.nn.Module):
+class ComputationGraphTableNeighborParse(torch.nn.Module):
     def __init__(self):
-        super(ComputationGraphTableParse, self).__init__()
+        super(ComputationGraphTableNeighborParse, self).__init__()
         self.k = 8
         self.D_in = 300 + self.k
 
         self.A = ModuleA(self.D_in, 100)
         self.B = ModuleB()
         self.B2 = ModuleB2(100, 100, 100)
-        self.associate_rows = ModuleAssociate2()
-        self.associate_cols = ModuleAssociate2()
-        self.associate_cells = ModuleAssociate2()
+        self.C = ModuleC(100, 2)
         self.D = ModuleD(100, 100)
         # self.Cat = ModuleCollect(100, self.N)
         self.iterations = 1
@@ -49,6 +45,7 @@ class ComputationGraphTableParse(torch.nn.Module):
             ww = self.concat(uu, indices, indices_not_found, num_words)
             bb = self.B.forward(ww, hh)
             oo, hh = self.B2.forward(bb)
+            ll = self.C.forward(oo)
             uu = self.D.forward(hh)
 
-        return self.associate_rows(oo, num_words), self.associate_cols(oo, num_words), self.associate_cells(oo, num_words)
+        return ll

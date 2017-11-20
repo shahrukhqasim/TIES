@@ -46,18 +46,50 @@ class Trainer:
         cv2.imshow('test' + id, canvas)
         cv2.waitKey(0)
 
+    def sample_indices(self, vector):
+        A = vector.copy()
+        num_ones = np.sum(A == 1)
+
+        sample_from = np.where(A == 0)[0]
+        np.random.shuffle(sample_from)
+        picked_zeros = sample_from[0:min(num_ones, np.size(sample_from))]
+        A[picked_zeros] = 1
+
+        return np.where(A == 1)[0]
+
     def get_example_elements(self, document, id):
         num_words, _ = np.shape(document.rects)
-        vv = np.concatenate([document.rects, document.distances, document.embeddings*0], axis=1).astype(np.float32)
+        vv = np.concatenate([document.rects, document.distances, document.embeddings], axis=1).astype(np.float32)
         vv = Variable(torch.from_numpy(vv)).cuda()
-        y_row = Variable(torch.from_numpy(document.row_share.flatten().astype(np.int64)), requires_grad=False).cuda()
-        y_col = Variable(torch.from_numpy(document.col_share.flatten().astype(np.int64)), requires_grad=False).cuda()
-        y_cell = Variable(torch.from_numpy(document.cell_share.flatten().astype(np.int64)), requires_grad=False).cuda()
+
+        row_share_flatten = document.row_share.flatten()
+        col_share_flatten = document.col_share.flatten()
+        cell_share_flatten = document.cell_share.flatten()
+
+        row_check_indices = self.sample_indices(row_share_flatten)
+        col_check_indices = self.sample_indices(col_share_flatten)
+        cell_check_indices = self.sample_indices(cell_share_flatten)
+
+        y_row = row_share_flatten[row_check_indices]
+        y_col = row_share_flatten[col_check_indices]
+        y_cell = row_share_flatten[cell_check_indices]
+
+        # y_row = Variable(torch.from_numpy(document.row_share.flatten()), requires_grad=False).cuda()
+        # y_col = Variable(torch.from_numpy(document.col_share.flatten().astype(np.int64)), requires_grad=False).cuda()
+        # y_cell = Variable(torch.from_numpy(document.cell_share.flatten().astype(np.int64)), requires_grad=False).cuda()
 
 
-        baseline_accuracy_row = 100 * np.sum(document.row_share.flatten() == 0) / (num_words * num_words)
-        baseline_accuracy_col = 100 * np.sum(document.col_share.flatten() == 1) / (num_words * num_words)
-        baseline_accuracy_cell = 100 * np.sum(document.cell_share.flatten() == 1) / (num_words * num_words)
+        baseline_accuracy_row = 100 * np.sum(y_row == 0) / (num_words * num_words)
+        baseline_accuracy_col = 100 * np.sum(y_col == 1) / (num_words * num_words)
+        baseline_accuracy_cell = 100 * np.sum(y_cell == 1) / (num_words * num_words)
+
+        y_row = Variable(torch.from_numpy(y_row.astype(np.int64))).cuda()
+        y_col = Variable(torch.from_numpy(y_col.astype(np.int64))).cuda()
+        y_cell = Variable(torch.from_numpy(y_cell.astype(np.int64))).cuda()
+
+        row_check_indices = torch.from_numpy(row_check_indices).cuda()
+        col_check_indices = torch.from_numpy(col_check_indices).cuda()
+        cell_check_indices = torch.from_numpy(cell_check_indices).cuda()
 
         indices = torch.LongTensor(torch.from_numpy(np.concatenate(
             [np.expand_dims(np.arange(num_words, dtype=np.int64), axis=1),
@@ -68,7 +100,7 @@ class Trainer:
             np.uint8))).cuda()
         indices_not_found = indices_not_found * 0
 
-        return num_words, vv, 0, 0, indices, indices_not_found, y_row, y_col, y_cell, baseline_accuracy_row, baseline_accuracy_col, baseline_accuracy_cell
+        return num_words, vv, 0, 0, indices, indices_not_found, y_row, y_col, y_cell, row_check_indices, col_check_indices, cell_check_indices, baseline_accuracy_row, baseline_accuracy_col, baseline_accuracy_cell
 
     def do_validation(self, model, dataset):
 
@@ -104,10 +136,10 @@ class Trainer:
         if not self.from_scratch:
             model.load_state_dict(torch.load(self.model_path))
 
-        class_weights = torch.from_numpy(np.array([10,100]).astype(np.float32)).cuda()
+        # class_weights = torch.from_numpy(np.array([0.01,0.99]).astype(np.float32)).cuda()
 
-        model.set_iterations(1)
-        criterion = torch.nn.CrossEntropyLoss(weight=class_weights, size_average=True)
+        model.set_iterations(2)
+        criterion = torch.nn.CrossEntropyLoss(size_average=True)
         optimizer = torch.optim.Adam(model.parameters(), lr=self.learning_rate)
         iterations = 0
 
@@ -116,7 +148,7 @@ class Trainer:
             #     self.do_validation(model, validation_dataset)
 
             document, epoch, id = dataset.next_element()
-            num_words, vv, baseline_accuracy_1, baseline_accuracy_2, indices, indices_not_found, y_row, y_col, y_cell, baseline_accuracy_row, baseline_accuracy_col, baseline_accuracy_cell = self.get_example_elements(
+            num_words, vv, baseline_accuracy_1, baseline_accuracy_2, indices, indices_not_found, y_row, y_col, y_cell, row_check_indices, col_check_indices, cell_check_indices, baseline_accuracy_row, baseline_accuracy_col, baseline_accuracy_cell = self.get_example_elements(
                 document, id)
 
             # Save model
@@ -124,10 +156,13 @@ class Trainer:
                 print("Saving model")
                 torch.save(model.state_dict(), self.model_path)
 
-            for j in range(2):
+            for j in range(1):
                 iterations += 1
 
                 row_logits, col_logits, cell_logits = model(indices, indices_not_found, vv, num_words)
+                row_logits = row_logits[row_check_indices]
+                col_logits = col_logits[col_check_indices]
+                cell_logits = cell_logits[cell_check_indices]
 
                 _, predicted = torch.max(row_logits.data, 1)
                 accuracy_row = torch.sum(predicted == y_row.data)
@@ -142,13 +177,13 @@ class Trainer:
                 accuracy_cell = 100 * accuracy_cell / (num_words * num_words)
 
                 loss_row = criterion(row_logits, y_row)
-                loss_col = criterion(col_logits, y_col)
-                loss_cell = criterion(cell_logits, y_cell)
-                loss = loss_row + loss_col + loss_cell
+                # loss_col = criterion(col_logits, y_col)
+                # loss_cell = criterion(cell_logits, y_cell)
+                loss = loss_row #+ loss_col + loss_cell
 
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
                 print("%3dx%3d Loss = %f" % (i, j, loss.data[0]), "Row: %03.2f" % accuracy_row,
-                      "Col: %03.2f" % accuracy_col, "Cell: %03.2f" % accuracy_cell, "BRow: %03.2f" % baseline_accuracy_row,
-                      "BCol: %03.2f" % baseline_accuracy_col, "BCell: %03.2f" % baseline_accuracy_cell)
+                      "BRow: %03.2f" % baseline_accuracy_row, "Col: %03.2f" % accuracy_col, "BCol: %03.2f" % baseline_accuracy_col,
+                      "Cell: %03.2f" % accuracy_cell, "BCell: %03.2f" % baseline_accuracy_cell)
