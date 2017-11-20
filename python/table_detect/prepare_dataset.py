@@ -149,8 +149,8 @@ class PrepareDataset:
                 token_rect['x'] + token_rect['width'] / 2)]
 
             left_rect = all_tokens_rects[int(neighbor_graph[i, 0])]
-            right_rect = all_tokens_rects[int(neighbor_graph[i, 1])]
-            top_rect = all_tokens_rects[int(neighbor_graph[i, 2])]
+            top_rect = all_tokens_rects[int(neighbor_graph[i, 1])]
+            right_rect = all_tokens_rects[int(neighbor_graph[i, 2])]
             bottom_rect = all_tokens_rects[int(neighbor_graph[i, 3])]
 
             if index == 0:
