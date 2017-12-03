@@ -22,44 +22,77 @@ class ModuleLstm2D(torch.nn.Module):
         self.D_in = D_in
         self.D_hidden = D_hidden
 
-        # Notation:
-        #   a = Pre-cell activation
-        #   f = Forget gate (y-coordinate)
-        #   g = Forget gate (x-coordinate)
-        #   k = Input gate
-        #   o = Output gate
-        #
-        #   W = Input weights [input -> hidden]
-        #   U = Recurrent weights [ hidden -> hidden] (x-coordinate)
-        #   V = Recurrent weights [ hidden -> hidden] (y-coordinate)
-        #   b = Bias weight of respective gates
+        self.LSTMx = torch.nn.LSTM(self.D_in, self.D_hidden, 1, batch_first=False, bidirectional=True)
+        self.LSTMy = torch.nn.LSTM(self.D_hidden * 2, self.D_hidden, 1, batch_first=False, bidirectional=True)
 
-        # Cite: The notation is picked from: https://github.com/jpuigcerver/rnn2d/wiki/LSTM-2D
-
-        self.W_a = Parameter(torch.Tensor(self.D_in, self.D_hidden))
-        self.U_a = Parameter(torch.Tensor(self.D_hidden, self.D_hidden))
-        self.V_a = Parameter(torch.Tensor(self.D_hidden, self.D_hidden))
-        self.b_a = Parameter(torch.Tensor(self.D_hidden))
-
-        self.W_f = Parameter(torch.Tensor(self.D_in, self.D_hidden))
-        self.U_f = Parameter(torch.Tensor(self.D_hidden, self.D_hidden))
-        self.V_f = Parameter(torch.Tensor(self.D_hidden, self.D_hidden))
-        self.b_f = Parameter(torch.Tensor(self.D_hidden))
-
-        self.W_g = Parameter(torch.Tensor(self.D_in, self.D_hidden))
-        self.U_g = Parameter(torch.Tensor(self.D_hidden, self.D_hidden))
-        self.V_g = Parameter(torch.Tensor(self.D_hidden, self.D_hidden))
-        self.b_g = Parameter(torch.Tensor(self.D_hidden))
-
-        self.W_k = Parameter(torch.Tensor(self.D_in, self.D_hidden))
-        self.U_k = Parameter(torch.Tensor(self.D_hidden, self.D_hidden))
-        self.V_k = Parameter(torch.Tensor(self.D_hidden, self.D_hidden))
-        self.b_k = Parameter(torch.Tensor(self.D_hidden))
-
-        self.W_o = Parameter(torch.Tensor(self.D_in, self.D_hidden))
-        self.U_o = Parameter(torch.Tensor(self.D_hidden, self.D_hidden))
-        self.V_o = Parameter(torch.Tensor(self.D_hidden, self.D_hidden))
-        self.b_o = Parameter(torch.Tensor(self.D_hidden))
 
     def forward(self, x):
-        pass
+        """
+        
+        Runs the forward pass
+        
+        x has shape [B, H, W, D_in]
+        
+        :param x: the Tensor
+        :return: 2D LSTM result
+        """
+
+        batch, height, width, input_size = x.size()
+
+        """
+        We need x in the form of [seq_len, batch, input_size].
+        Current:
+        [batch, height, width, input_size]
+        
+        The required sequence length is the width of the image.
+        Merge batch and height to get:
+        [batch*height, width, input_size]
+        Then take the transpose:
+        [width, batch*height, input_size]
+        It is the required format
+        
+        """
+
+        x = x.view(batch * height, width, input_size)
+        x = x.transpose(0,1).contiguous()
+
+        # Pass through the LSTM
+        x, _ = self.LSTMx.forward(x, None)
+
+        """
+        x_hidden should be of the size [width, batch * height, hidden_size * 2]
+        We need it in the form of [height, batch * width, hidden_size * 2]
+        First take transpose to get:
+        [batch * height, width, hidden_size * 2]
+        Then review as :
+        [batch, height, width, hidden_size * 2]
+        Then take transpose:
+        [height, batch, width, hidden_size * 2]
+        Join batch and width:
+        [height, batch * width, hidden_size * 2]
+        
+        """
+
+        x = x.transpose(0, 1).contiguous()
+        x = x.view(batch, height, width, self.D_hidden * 2)
+        x = x.transpose(0, 1).contiguous()
+        x = x.view(height, batch * width, self.D_hidden * 2)
+        x, _ = self.LSTMy.forward(x)
+
+        """
+        Now it should be of size [height, batch * width, hidden_size * 2]
+        Take transpose:
+        [batch * width, height, hidden_size]
+        View:
+        [batch, width, height, hidden_size]
+        Transpose:
+        [batch, height, width, hidden_size]
+        """
+
+        x = x.transpose(0,1).contiguous()
+        x = x.view(batch, width, height, self.D_hidden * 2)
+        x = x.transpose(1,2).contiguous()
+
+
+        return x
+
