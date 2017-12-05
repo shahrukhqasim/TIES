@@ -9,6 +9,7 @@ import os
 from tensorflow.contrib.ndlstm.python import lstm2d as lstm2d_lib
 import numpy as np
 import cv2
+import sys
 
 slim = tf.contrib.slim
 
@@ -213,6 +214,12 @@ class Parser2d:
 
 
 if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print("Error in arguments")
+        print("Usage: python table_parse_2d/parser_2d.py [config_section_name]")
+        print("\tFor example, if the section name in the config file is `zone_segment` you can issue:\n"
+              "\tpython table_parse_2d/parser_2d.py zone_segment")
+        sys.exit(-1)
     parser = Parser2d()
     parser.construct_graphs()
     parser.train()

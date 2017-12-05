@@ -1,4 +1,5 @@
 import numpy as np
+
 import json
 import xml.etree.ElementTree as ET
 import cv2
@@ -13,23 +14,28 @@ from conv_autoencoder.convolutional_autoencoder import ConvolutionalAutoencoder
 import math
 from table_parse_2d.document_for_zone_segment import ZoneSegmentDocument
 import gzip
+from PIL import Image
+import matplotlib.image
+from numpy import zeros, newaxis
+import configparser as cp
 
 show = False
 show_ocr = False
 dont_output = False
 
-input_path = '/home/srq/Datasets/fmarg/combined'
 
-test_division_txt = '/home/srq/Datasets/fmarg/division/test.txt'
-train_division_txt = '/home/srq/Datasets/fmarg/division/train.txt'
-validate_division_txt = '/home/srq/Datasets/fmarg/division/validate.txt'
+config = cp.ConfigParser()
+config.read('config.ini')
 
-test_out = '/home/srq/Datasets/fmarg/marg-for-div/test'
-train_out = '/home/srq/Datasets/fmarg/marg-for-div/train'
-validate_out = '/home/srq/Datasets/fmarg/marg-for-div/validate'
-
-glove_path = '/media/srq/Seagate Expansion Drive1/Models/GloVe/glove.840B.300d.txt'
-cache_name = 'marg_complete'
+input_path=config['dataset_prepare_marg']['input_path']
+test_division_txt=config['dataset_prepare_marg']['test_division_txt']
+train_division_txt=config['dataset_prepare_marg']['train_division_txt']
+validate_division_txt=config['dataset_prepare_marg']['validate_division_txt']
+test_out=config['dataset_prepare_marg']['test_out']
+train_out=config['dataset_prepare_marg']['train_out']
+validate_out=config['dataset_prepare_marg']['validate_out']
+glove_path=config['dataset_prepare_marg']['glove_path']
+cache_name=config['dataset_prepare_marg']['cache_name']
 
 
 # Pick up train/test/validate split
@@ -65,23 +71,23 @@ class PrepareMarg:
         x2 = int(vertices[2].attrib['x'])
         y2 = int(vertices[2].attrib['y'])
 
-        self.zone_segmentation[y1:y2-1, x1:x2-1] = zone_id
+        self.zone_segmentation[max(0, y1 - 1):(y2), max(0, x1 - 1):(x2)] = zone_id
 
     def execute_tokens(self):
         # To get local neighbors of each token: Left, right, top, bottom
-        graph_builder = NeighborGraphBuilder(self.all_tokens_rects, self.image[:,:,0])
+        graph_builder = NeighborGraphBuilder(self.all_tokens_rects, self.image[:, :, 0])
         # M is the indices graph and D is distance matrix
         M, D = graph_builder.get_neighbor_matrix()
 
         N = len(self.all_tokens)
 
-        neighbors_same_zone = np.zeros((N,4))
+        neighbors_same_zone = np.zeros((N, 4))
 
         for i in range(N):
-            left_index = int(M[i,0])
-            top_index = int(M[i,1])
-            right_index = int(M[i,2])
-            bottom_index = int(M[i,3])
+            left_index = int(M[i, 0])
+            top_index = int(M[i, 1])
+            right_index = int(M[i, 2])
+            bottom_index = int(M[i, 3])
 
             token_rect = self.all_tokens_rects[i]
             mid = [int(token_rect['x'] + token_rect['width'] / 2), int(token_rect['y'] + token_rect['height'] / 2)]
@@ -93,6 +99,10 @@ class PrepareMarg:
                 # They share zone
                 if self.zone_segmentation[mid[1], mid[0]] == self.zone_segmentation[mid_2[1], mid_2[0]]:
                     neighbors_same_zone[i, 0] = 1
+                else:
+                    neighbors_same_zone[i, 0] = 110
+            else:
+                neighbors_same_zone[i, 0] = 1
 
             if top_index != -1:
                 token_rect_2 = self.all_tokens_rects[top_index]
@@ -101,6 +111,10 @@ class PrepareMarg:
                 # They share zone
                 if self.zone_segmentation[mid[1], mid[0]] == self.zone_segmentation[mid_2[1], mid_2[0]]:
                     neighbors_same_zone[i, 1] = 1
+                else:
+                    neighbors_same_zone[i, 1] = 110
+            else:
+                neighbors_same_zone[i, 0] = 1
 
             if right_index != -1:
                 token_rect_2 = self.all_tokens_rects[right_index]
@@ -109,6 +123,10 @@ class PrepareMarg:
                 # They share zone
                 if self.zone_segmentation[mid[1], mid[0]] == self.zone_segmentation[mid_2[1], mid_2[0]]:
                     neighbors_same_zone[i, 2] = 1
+                else:
+                    neighbors_same_zone[i, 1] = 110
+            else:
+                neighbors_same_zone[i, 0] = 1
 
             if bottom_index != -1:
                 token_rect_2 = self.all_tokens_rects[bottom_index]
@@ -117,23 +135,36 @@ class PrepareMarg:
                 # They share zone
                 if self.zone_segmentation[mid[1], mid[0]] == self.zone_segmentation[mid_2[1], mid_2[0]]:
                     neighbors_same_zone[i, 3] = 1
+                else:
+                    neighbors_same_zone[i, 1] = 110
+
+            else:
+                neighbors_same_zone[i, 0] = 1
 
         # To place input vectors at respective spatial coordinates
         input_tensor = np.zeros((256, 256, 308)).astype(np.float64)
         # Same zone or not, 0 for not, 1 for yes
         output_tensor = np.zeros((256, 256, 4)).astype(np.float64)
         # Whether there was a word here or not
+        # output_tensor_word_mask = np.zeros((256, 256)).astype(np.float64)
         output_tensor_word_mask = np.zeros((256, 256)).astype(np.float64)
+
         # Whether there was a zone here or not
         self.zone_segmentation[self.zone_segmentation != 0] = 1
-        output_tensor_zone_mask = cv2.resize(self.zone_segmentation, (256,256))
+
+        output_tensor_zone_mask = cv2.resize(self.zone_segmentation, (256, 256))
+        # output_tensor_zone_mask = output_tensor_zone_mask_temp.reshape(-1,3)
         for i in range(N):
             token_rect = self.all_tokens_rects[i]
+            #            mid = [int(token_rect['x'] + token_rect['width'] / 2), int(token_rect['y'] + token_rect['height'] / 2)]
             # Source coordinates of top left of tokens
             cx = token_rect['x']
             cy = token_rect['y']
             cw = token_rect['width']
             ch = token_rect['height']
+            #            token_rect_2 = self.all_tokens_rects[top_index]
+            #            mid_2 = [int(token_rect_2['x'] + token_rect_2['width'] / 2),
+            #                         int(token_rect_2['y'] + token_rect_2['height'] / 2)]
 
 
             distances_vector = D[i]
@@ -153,20 +184,48 @@ class PrepareMarg:
             input_tensor[ny, nx] = np.concatenate((embedding, positional))
 
             # From the neighbor graph
-            output_tensor[ny, nx] = np.array([neighbors_same_zone[i, 0], neighbors_same_zone[i, 1], neighbors_same_zone[i, 2],
-                                              neighbors_same_zone[i, 3]])
-            # Set mask to 1
-            output_tensor_word_mask[ny, nx] = 1
+            output_tensor[ny, nx] = np.array(
+                [neighbors_same_zone[i, 0], neighbors_same_zone[i, 1], neighbors_same_zone[i, 2],
+                 neighbors_same_zone[i, 3]])
+
+            if any(x == 110 for x in output_tensor[ny, nx]):
+                output_tensor_word_mask[ny, nx] = 110
+            else:
+                output_tensor_word_mask[ny, nx] = 1
+                # Set mask to 1
+                # output_tensor_word_mask[ny, nx] =1
+                # print (output_tensor_word_mask[ny, nx])
 
         print(self.sorted_path)
+        rgb = np.zeros((256, 256, 3))
+        for i in range(output_tensor_word_mask.shape[0]):
+            for j in range(output_tensor_word_mask.shape[1]):
+                if output_tensor_word_mask[i, j] == 1.0:
+                    rgb[i, j, 0] = 255
+                    rgb[i, j, 1] = 255
+                    rgb[i, j, 2] = 255
+                elif output_tensor_word_mask[i, j] == 110.0:
+                    rgb[i, j, 0] = 255
+                    rgb[i, j, 1] = 0
+                    rgb[i, j, 2] = 0
 
         # Output debugging visual file for zone mask
         segmentation_visualize_path = os.path.join(self.sorted_path, 'visual_segment.png')
-        cv2.imwrite(segmentation_visualize_path, (output_tensor_zone_mask*255).astype(np.uint8))
+        cv2.imwrite(segmentation_visualize_path, (output_tensor_zone_mask * 255).astype(np.uint8))
 
         # Output debugging visual image for word mask
         word_mask_path = os.path.join(self.sorted_path, 'visual_word_mask.png')
-        cv2.imwrite(word_mask_path, (output_tensor_word_mask * 255).astype(np.uint8))
+        output_tensor_word_mask_temp = (rgb.transpose((2, 0, 1)) * output_tensor_zone_mask).transpose(1, 2, 0)
+        # output_tensor_word_mask_temp=rgb*np.repeat(output_tensor_zone_mask,3).reshape((256,256,3))
+        print(output_tensor_word_mask_temp.shape)
+
+        # output_tensor_zone_mask_temp  = np.resize(output_tensor_zone_mask, (256, 256, 3))
+
+        # output_tensor_word_mask=np.multiply(rgb,output_tensor_zone_mask_temp )
+        matplotlib.image.imsave(word_mask_path, rgb.astype(np.uint8))
+        word_mask_path_1 = os.path.join(self.sorted_path, 'visual_word_mask_masked.png')
+        matplotlib.image.imsave(word_mask_path_1, output_tensor_word_mask_temp.astype(np.uint8))
+        # cv2.imwrite(word_mask_path, (output_tensor_word_mask *255).astype(np.uint8))
 
         # Dump the content to pickle file. The file is compressed by gzip.
         dump_path = os.path.join(self.sorted_path, '__dump__.pklz')
@@ -211,9 +270,6 @@ class PrepareMarg:
                 token_rect['width'] = int(divided_width)
                 self.all_tokens_rects.append(token_rect)
 
-
-
-
     @staticmethod
     def pick_up_words(json_path, image_path):
         image = cv2.imread(image_path, 0)
@@ -227,8 +283,9 @@ class PrepareMarg:
         for i in range(len(ocr_data)):
 
             word_data = ocr_data[i]
-            x, y, width, height, word = int(word_data['rect']['x']), int(word_data['rect']['y']), int(word_data['rect']['width']), \
-                                   int(word_data['rect']['height']), word_data['word']
+            x, y, width, height, word = int(word_data['rect']['x']), int(word_data['rect']['y']), int(
+                word_data['rect']['width']), \
+                                        int(word_data['rect']['height']), word_data['word']
 
             word_data_2 = {'rect': {'x': x, 'y': y, 'width': width, 'height': height}, 'word': word}
 
@@ -239,7 +296,6 @@ class PrepareMarg:
             ocr_data_2.append(word_data_2)
 
         return ocr_data_2, nlp_tokens_all
-
 
 
 # print("Loading dictionary")
@@ -264,7 +320,6 @@ nlp_tokens = set()
 glove_reader = GLoVe(glove_path, nlp_tokens)
 glove_reader.load(cache_name)
 
-
 last_id = 1
 
 for parent_path in os.listdir(input_path):
@@ -283,9 +338,10 @@ for parent_path in os.listdir(input_path):
         if not sub_file.endswith('.png'):
             continue
         id = os.path.splitext(sub_file)[0]
-        png_path = os.path.join(parent_path_full, id+'.png')
-        xml_path = os.path.join(parent_path_full, id+'.xml')
-        json_path = os.path.join(parent_path_full, id+'.json')
+        png_path = os.path.join(parent_path_full, id + '.png')
+        print(png_path)
+        xml_path = os.path.join(parent_path_full, id + '.xml')
+        json_path = os.path.join(parent_path_full, id + '.json')
         sorted_path = os.path.join(out_path, str(last_id))
         if not os.path.exists(sorted_path):
             os.mkdir(sorted_path)
