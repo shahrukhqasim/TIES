@@ -293,13 +293,15 @@ class UnlvConverter:
                  neighbors_same_cell[i, 3]])
 
             if neighbors_same_cell[i, 0] == 1 or neighbors_same_cell[i, 1] == 1:
-                output_tensor_word_mask[ny, nx] = 1
                 rgb[ny,nx] = np.array([0,0,255])
             else:
                 rgb[ny,nx] = np.array([255,255,255])
                 # Set mask to 1
                 # output_tensor_word_mask[ny, nx] =1
                 # print (output_tensor_word_mask[ny, nx])
+
+            output_tensor_word_mask[ny, nx] = 1
+
 
         if glove_not_found / N > 0.3:
             print("WARNING: GloVe not found ratio", glove_not_found / N)
